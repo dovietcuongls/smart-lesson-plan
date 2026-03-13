@@ -2,153 +2,247 @@ import streamlit as st
 import google.generativeai as genai
 import PyPDF2
 import docx
+from PIL import Image
+import pandas as pd
+import io
 import os
-from dotenv import load_dotenv
+import re
 
-# Tải biến môi trường từ file .env (nếu có)
-load_dotenv()
+# ==========================================
+# CẤU HÌNH BACKEND: Khai báo API Key ở đây
+# ==========================================
+# Bạn hãy thay thế chuỗi bên dưới bằng API Key thật của bạn.
+# Tuyệt đối không để lộ mã này lên GitHub công khai.
+GOOGLE_API_KEY = "PASTE_YOUR_API_KEY_HERE"
 
-# Cấu hình giao diện Streamlit
-st.set_page_config(page_title="Trợ lý Phân tích Văn bản", page_icon="📝", layout="wide")
+# Ưu tiên cấu hình từ Streamlit Secrets, nếu không có thì lấy trực tiếp từ biến trên
+try:
+    API_KEY = st.secrets.get("GEMINI_API_KEY", GOOGLE_API_KEY)
+except Exception:
+    API_KEY = GOOGLE_API_KEY
 
-st.title("📝 Trợ lý Phân tích Văn bản & Lập Kế hoạch")
+def configure_genai():
+    if API_KEY and API_KEY != "PASTE_YOUR_API_KEY_HERE":
+        genai.configure(api_key=API_KEY)
+        return True
+    return False
+
+# ==========================================
+# THIẾT LẬP GIAO DIỆN (UI)
+# ==========================================
+st.set_page_config(page_title="Trợ lý Xử lý Văn bản Chỉ đạo", page_icon="📝", layout="wide")
+
+# Áp dụng Custom CSS cho tông màu Xanh đậm - Trắng và Footer
 st.markdown("""
-Ứng dụng này sử dụng **Gemini AI** làm trợ lý đắc lực để đọc hiểu văn bản của bạn. 
-Mỗi khi bạn tải lên một tài liệu, hệ thống sẽ tự động tóm tắt nội dung chính và trích xuất một danh sách các công việc cụ thể (to-do list) để bạn dễ dàng theo dõi và thực hiện.
-""")
+    <style>
+    /* Chỉnh màu chữ tiêu đề chính */
+    .stApp {
+        background-color: #FFFFFF;
+    }
+    h1, h2, h3 {
+        color: #003366 !important; /* Xanh dương đậm */
+    }
+    /* Tùy chỉnh Sidebar */
+    [data-testid="stSidebar"] {
+        background-color: #F0F4F8;
+    }
+    /* Chỉnh sửa layout Markdown Table cho đẹp */
+    table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    th {
+        background-color: #004080;
+        color: white;
+        text-align: left;
+        padding: 8px;
+    }
+    td {
+        border: 1px solid #ddd;
+        padding: 8px;
+    }
+    tr:nth-child(even) {
+        background-color: #f2f2f2;
+    }
+    /* Footer */
+    .footer {
+        position: fixed;
+        left: 0;
+        bottom: 0;
+        width: 100%;
+        background-color: transparent;
+        color: gray;
+        text-align: center;
+        padding: 10px;
+        font-size: 14px;
+        z-index: 100;
+    }
+    </style>
+""", unsafe_allow_html=True)
 
-# Thanh bên (Sidebar) để cấu hình API Key
-with st.sidebar:
-    st.header("⚙️ Cấu hình Hệ thống")
-    st.markdown("""
-    **Hỗ trợ các định dạng:**
-    - Text (`.txt`)
-    - PDF (`.pdf`)
-    - Word (`.docx`)
-    """)
-    
-    # Lấy API key ẩn (từ thiết lập cấu hình của Streamlit Cloud hoặc file .env cục bộ)
-    try:
-        api_key_input = st.secrets["GEMINI_API_KEY"]
-    except FileNotFoundError:
-        api_key_input = os.getenv("GEMINI_API_KEY", "")
-    except KeyError:
-        api_key_input = os.getenv("GEMINI_API_KEY", "")
+st.title("🏛️ Trợ lý Xử lý Văn bản Chỉ đạo")
+st.markdown("**Số hóa quy trình bóc tách công việc từ văn bản nhà nước/nhà trường một cách tự động và chính xác.**")
+st.divider()
 
-    selected_model_name = "gemini-1.5-flash"
-    if api_key_input:
-        genai.configure(api_key=api_key_input)
-        try:
-            available_models = []
-            for m in genai.list_models():
-                if 'generateContent' in m.supported_generation_methods:
-                    available_models.append(m.name)
-            
-            if available_models:
-                default_index = 0
-                for i, m_name in enumerate(available_models):
-                    if "1.5-flash" in m_name:
-                        default_index = i
-                        break
-                st.markdown("---")
-                selected_model_name = st.selectbox("🤖 Chọn mô hình AI:", available_models, index=default_index)
-            else:
-                st.warning("⚠️ Không tìm thấy mô hình nào hỗ trợ tạo nội dung với API Key này.")
-        except Exception as e:
-            st.error(f"Lỗi khi lấy danh sách mô hình: {e}")
-
-# Hàm đọc nội dung từ file PDF
+# ==========================================
+# CÁC HÀM XỬ LÝ ĐỌC FILE
+# ==========================================
 def extract_text_from_pdf(file):
-    pdf_reader = PyPDF2.PdfReader(file)
     text = ""
-    for page in pdf_reader.pages:
-        extracted = page.extract_text()
-        if extracted:
-            text += extracted + "\n"
+    try:
+        pdf_reader = PyPDF2.PdfReader(file)
+        for page in pdf_reader.pages:
+            extracted = page.extract_text()
+            if extracted:
+                text += extracted + "\n"
+    except Exception as e:
+        raise Exception(f"Không thể đọc file PDF (có thể là file scan hoặc bị lỗi): {e}")
     return text
 
-# Hàm đọc nội dung từ file Word
 def extract_text_from_docx(file):
-    doc = docx.Document(file)
-    return "\n".join([para.text for para in doc.paragraphs])
+    try:
+        doc = docx.Document(file)
+        return "\n".join([para.text for para in doc.paragraphs])
+    except Exception as e:
+        raise Exception(f"Không thể đọc file Word: {e}")
 
-# Mẫu Promt chuẩn hóa cho Gemini
-PROMPT_TEMPLATE = """
-Bạn là một trợ lý AI thông minh, chuyên nghiệp và có khả năng phân tích yêu cầu xuất sắc.
-Dưới đây là nội dung của một văn bản mà người dùng đã tải lên:
+# Hàm chuyển đổi Markdown Table sang DataFrame của Pandas
+def markdown_table_to_df(markdown_str):
+    # Tìm tất cả các dòng chứa ký tự '|' báo hiệu bảng
+    lines = markdown_str.strip().split('\n')
+    table_lines = [line for line in lines if '|' in line]
+    
+    if not table_lines:
+        return None
+        
+    # Xử lý tiêu đề (dòng đầu tiên)
+    header_line = table_lines[0]
+    headers = [col.strip() for col in header_line.split('|') if col.strip()]
+    
+    # Xử lý các dòng dữ liệu (bỏ qua dòng phân cách ---|--- thường là dòng số 2)
+    data = []
+    for line in table_lines[1:]:
+        # Bỏ qua dòng format ----
+        if set(line.replace('|', '').replace('-', '').replace(' ', '').replace(':', '')) == set():
+            continue
+        cols = [col.strip() for col in line.split('|')[1:-1]] # Bỏ cột rỗng ở đầu và cuối do split
+        if len(cols) == len(headers):
+            data.append(cols)
+        elif len(cols) > 0: # Cố gắng điền nếu độ dài không khớp do xuống dòng markdown
+            # Cắt hoặc padding thêm
+            if len(cols) > len(headers):
+                cols = cols[:len(headers)]
+            else:
+                cols = cols + [""] * (len(headers) - len(cols))
+            data.append(cols)
+            
+    if headers and data:
+        return pd.DataFrame(data, columns=headers)
+    return None
 
----
-{text}
----
+# ==========================================
+# SIDEBAR
+# ==========================================
+with st.sidebar:
+    st.header("📂 Tải Văn Bản")
+    uploaded_file = st.file_uploader(
+        "Kéo thả hoặc dán file vào đây", 
+        type=["pdf", "docx", "png", "jpg", "jpeg"]
+    )
+    
+    st.markdown("---")
+    st.markdown("""
+    **✅ Hướng dẫn sử dụng:**
+    1. Tải lên công văn, kế hoạch (File Word, PDF) hoặc ảnh chụp công văn có dấu đỏ.
+    2. Đợi hệ thống AI đọc và xử lý.
+    3. Nhận bảng công việc đã được bóc tách tự động.
+    4. Tải file Excel về máy để lưu minh chứng theo dõi.
+    """)
 
-Dựa vào nội dung văn bản trên, hãy thực hiện 2 nhiệm vụ sau một cách chính xác và rõ ràng:
+# ==========================================
+# XỬ LÝ CHÍNH
+# ==========================================
 
-1. **Tóm tắt nội dung chính (Executive Summary)**:
-   - Viết một đoạn tóm tắt ngắn gọn (khoảng 3-5 câu) nêu bật những thông điệp, mục tiêu hoặc quyết định quan trọng nhất của văn bản.
-
-2. **Kế hoạch hành động cụ thể (Actionable To-Do List)**:
-   - Liệt kê các công việc CỤ THỂ cần làm để hoàn thành tốt các yêu cầu/nhiệm vụ được nêu trong văn bản.
-   - Trình bày dưới dạng danh sách checklist (có thể sử dụng gạch đầu dòng hoặc hộp kiểm).
-   - Nếu có các mốc thời gian hoặc người phụ trách (nếu được nhắc đến trong văn bản), hãy ghi chú rõ.
-   - Đảm bảo các hành động được mô tả theo dạng động từ chỉ hành động (Ví dụ: "Liên hệ...", "Chuẩn bị...", "Gửi...").
-
-Hãy phân tích kỹ và trả lời bằng Tiếng Việt, sử dụng định dạng Markdown đẹp, chuyên nghiệp để dễ đọc.
+PROMPT_TEXT = """Đóng vai một Hiệu trưởng / Quản lý hành chính trường học. Hãy đọc văn bản chỉ đạo sau và bóc tách thông tin thành một bảng nghiêm ngặt. 
+Bảng phải gồm chính xác 4 cột:
+1. Tóm tắt Nội dung chính (Ngắn gọn 2-3 câu).
+2. Đối tượng thực hiện (Ghi đích danh: GV Ngữ văn, Lịch sử, Ban giám hiệu, Bảo vệ...).
+3. Hành động cần làm (Liệt kê gạch đầu dòng các công việc cụ thể).
+4. Hạn hoàn thành (Rút trích ngày tháng, nếu văn bản không ghi thì điền 'Theo tiến độ chung').
+Trả về kết quả 100% dưới dạng Markdown Table để tôi hiển thị lên web.
 """
 
-# Khu vực upload file
-uploaded_file = st.file_uploader("Kéo thả hoặc dấn để tải văn bản lên", type=["txt", "pdf", "docx"])
-
 if uploaded_file is not None:
-    if not api_key_input:
-        st.error("⚠️ Ứng dụng chưa được cài đặt API Key ẩn phía máy chủ. Xin hãy cấu hình trong cài đặt Streamlit.")
+    if not configure_genai():
+        st.error("⚠️ LỖI: Chưa cấu hình GOOGLE_API_KEY ở backend. Vui lòng kiểm tra mã nguồn (app.py) hoặc cấu hình Streamlit Secrets.")
     else:
-        st.info("Đã nhận file. Đang tiến hành đọc và phân tích...")
+        st.info(f"Đang phân tích tài liệu: **{uploaded_file.name}**...")
         
-        text_content = ""
+        file_ext = uploaded_file.name.split('.')[-1].lower()
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        
         try:
-            # Xử lý file dựa trên loại định dạng
-            if uploaded_file.name.endswith(".txt"):
-                text_content = uploaded_file.read().decode("utf-8")
-            elif uploaded_file.name.endswith(".pdf"):
-                text_content = extract_text_from_pdf(uploaded_file)
-            elif uploaded_file.name.endswith(".docx"):
-                text_content = extract_text_from_docx(uploaded_file)
-            
-            # Kiểm tra xem file có nội dung text hợp lệ hay không
-            if not text_content.strip():
-                st.warning("Tài liệu của bạn không chứa văn bản (có thể là ảnh quét) hoặc bị trống. Vui lòng thử file khác.")
-            else:
-                st.success("Đã trích xuất nội dung văn bản thành công! Đang gọi Gemini AI phân tích...")
+            with st.spinner("AI đang bóc tách dự liệu... Vui lòng đợi trong giây lát."):
+                response = None
                 
-                # Tạo dải phân cách giao diện
-                st.divider()
+                # Xử lý ảnh (Gửi thẳng file ảnh qua Vision model)
+                if file_ext in ['png', 'jpg', 'jpeg']:
+                    image = Image.open(uploaded_file)
+                    st.image(image, caption="Ảnh chụp công văn tải lên", width=300)
+                    response = model.generate_content([PROMPT_TEXT, image])
+                    
+                # Xử lý text từ PDF hoặc DOCX
+                else:
+                    text_content = ""
+                    if file_ext == "pdf":
+                        text_content = extract_text_from_pdf(uploaded_file)
+                    elif file_ext == "docx":
+                        text_content = extract_text_from_docx(uploaded_file)
+                    
+                    if not text_content.strip():
+                        st.warning("⚠️ Không tìm thấy chữ trong văn bản. Nếu đây là PDF dạng scan (văn bản chụp hình), vui lòng chuyển sang file ảnh (.png, .jpg) để upload lại.")
+                    else:
+                        full_prompt = PROMPT_TEXT + "\\n\\nNội dung văn bản:\\n" + text_content
+                        response = model.generate_content(full_prompt)
                 
-                # Chia layout: Bên trái hiển thị 1 phần text gốc (tùy chọn), bên phải hiển thị kết quả
-                col1, col2 = st.columns([1, 2])
-                
-                with col1:
-                    st.subheader("📄 Giới thiệu tài liệu")
-                    st.write(f"**Tên file:** {uploaded_file.name}")
-                    st.write(f"**Độ dài:** ~{len(text_content.split())} từ")
-                    with st.expander("Xem nội dung gốc (đã trích xuất)"):
-                        st.text(text_content)
-                
-                with col2:
-                    st.subheader("✨ Phân tích từ Gemini AI")
-                    with st.spinner("Gemini đang đọc và lên kế hoạch... Vui lòng đợi trong giây lát."):
-                        try:
-                            # Khởi tạo model AI đã được chọn từ thanh bên
-                            model = genai.GenerativeModel(selected_model_name)
-                            
-                            # Gửi prompt chuyên biệt
-                            prompt = PROMPT_TEMPLATE.format(text=text_content)
-                            response = model.generate_content(prompt)
-                            
-                            # Hiển thị kết quả
-                            st.markdown(response.text)
-                            
-                        except Exception as e:
-                            st.error(f"❌ Đã xảy ra lỗi khi giao tiếp với Gemini API: {str(e)}")
-                            
+                # Render kết quả
+                if response:
+                    st.success("✅ Đã bóc tách thành công!")
+                    
+                    st.subheader("📊 Bảng Phân công Công việc")
+                    markdown_result = response.text
+                    
+                    # Hiện bảng lên màn hình
+                    st.markdown(markdown_result)
+                    
+                    # Xử lý xuất Excel
+                    df = markdown_table_to_df(markdown_result)
+                    if df is not None:
+                        # Ghi Dataframe ra bộ nhớ đệm (buffer) để tạo file Excel tải xuống
+                        output = io.BytesIO()
+                        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                            df.to_excel(writer, index=False, sheet_name='Phan_Cong')
+                        
+                        excel_data = output.getvalue()
+                        
+                        st.markdown("---")
+                        col1, col2, col3 = st.columns([1, 2, 1])
+                        with col2:
+                            st.download_button(
+                                label="📥 Tải xuống Bảng Phân công (Excel)",
+                                data=excel_data,
+                                file_name=f"Ban_Phan_Cong_{uploaded_file.name}.xlsx",
+                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                use_container_width=True
+                            )
+                    else:
+                        st.warning("⚠️ AI trả về kết quả nhưng không nằm trong định dạng bảng chuẩn nên không thể tạo file Excel. Xin thử lại với tư duy khác của AI.")
+                        
         except Exception as e:
-            st.error(f"❌ Lỗi khi đọc file: {str(e)}")
+            st.error(f"❌ Xảy ra lỗi trong quá trình xử lý: {str(e)}")
+
+
+# ==========================================
+# FOOTER
+# ==========================================
+st.markdown('<div class="footer">© 2026 Bản quyền thuộc về Đỗ Viết Cường - Trường PTDTNT Cao Lộc</div>', unsafe_allow_html=True)
