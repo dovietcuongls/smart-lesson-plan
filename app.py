@@ -178,11 +178,22 @@ if uploaded_file is not None:
     else:
         st.info(f"Đang phân tích tài liệu: **{uploaded_file.name}**...")
         
-        file_ext = uploaded_file.name.split('.')[-1].lower()
-        model = genai.GenerativeModel('gemini-1.5-flash')
-        
         try:
-            with st.spinner("AI đang bóc tách dự liệu... Vui lòng đợi trong giây lát."):
+            # Lấy danh sách model khả dụng
+            available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+            if not available_models:
+                raise Exception("API Key của bạn không có quyền truy cập vào bất kỳ mô hình Gemini nào hỗ trợ tạo nội dung.")
+                
+            # Ưu tiên chọn gemini-1.5-flash hoặc gemini-2.5-flash nếu có, nếu không thì lấy model đầu tiên
+            selected_model = available_models[0]
+            for m_name in available_models:
+                if "1.5-flash" in m_name or "2.5-flash" in m_name:
+                    selected_model = m_name
+                    break
+                    
+            model = genai.GenerativeModel(selected_model)
+            
+            with st.spinner(f"AI ({selected_model}) đang bóc tách dữ liệu... Vui lòng đợi trong giây lát."):
                 response = None
                 
                 # Xử lý ảnh (Gửi thẳng file ảnh qua Vision model)
