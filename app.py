@@ -196,6 +196,8 @@ if uploaded_file is not None:
             with st.spinner(f"AI ({selected_model}) đang bóc tách dữ liệu... Vui lòng đợi trong giây lát."):
                 response = None
                 
+                file_ext = uploaded_file.name.split('.')[-1].lower()
+                
                 # Xử lý ảnh (Gửi thẳng file ảnh qua Vision model)
                 if file_ext in ['png', 'jpg', 'jpeg']:
                     image = Image.open(uploaded_file)
