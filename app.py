@@ -20,15 +20,21 @@ Mỗi khi bạn tải lên một tài liệu, hệ thống sẽ tự động tó
 # Thanh bên (Sidebar) để cấu hình API Key
 with st.sidebar:
     st.header("⚙️ Cấu hình Hệ thống")
-    api_key_input = st.text_input("Nhập Google Gemini API Key:", type="password", value=os.getenv("GEMINI_API_KEY", ""))
-    st.markdown("[Lấy API Key miễn phí tại Google AI Studio](https://aistudio.google.com/app/apikey)")
-    st.markdown("---")
     st.markdown("""
     **Hỗ trợ các định dạng:**
     - Text (`.txt`)
     - PDF (`.pdf`)
     - Word (`.docx`)
     """)
+    
+    # Lấy API key ẩn (từ thiết lập cấu hình của Streamlit Cloud hoặc file .env cục bộ)
+    try:
+        api_key_input = st.secrets["GEMINI_API_KEY"]
+    except FileNotFoundError:
+        api_key_input = os.getenv("GEMINI_API_KEY", "")
+    except KeyError:
+        api_key_input = os.getenv("GEMINI_API_KEY", "")
+
     selected_model_name = "gemini-1.5-flash"
     if api_key_input:
         genai.configure(api_key=api_key_input)
@@ -94,7 +100,7 @@ uploaded_file = st.file_uploader("Kéo thả hoặc dấn để tải văn bản
 
 if uploaded_file is not None:
     if not api_key_input:
-        st.error("⚠️ Vui lòng nhập Gemini API Key ở thanh công cụ bên trái trước khi phân tích.")
+        st.error("⚠️ Ứng dụng chưa được cài đặt API Key ẩn phía máy chủ. Xin hãy cấu hình trong cài đặt Streamlit.")
     else:
         st.info("Đã nhận file. Đang tiến hành đọc và phân tích...")
         
