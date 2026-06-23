@@ -261,11 +261,11 @@ Trả về kết quả 100% dưới dạng Markdown Table để tôi hiển th�
                 st.error(f"❌ Xảy ra lỗi trong quá trình xử lý: {str(e)}")
 
 # ------------------------------------------
-# TAB 2: PHÒNG THÍ NGHIỆM VĂN HỌC (Mô phỏng sơ đồ liên kết)
+# TAB 2: PHÒNG THÍ NGHIỆM VĂN HỌC (Ghép nối sơ đồ trò chơi)
 # ------------------------------------------
 with tab2:
     st.title("🧪 Phòng Thí Nghiệm Văn Học")
-    st.markdown("**Ứng dụng học tập thông minh: Trực quan hóa cấu trúc sơ đồ tư duy bằng hạt vật lý tương tác liên kết.**")
+    st.markdown("**Trò chơi học tập: Kéo thả lắp ráp hoàn thiện cấu trúc sơ đồ tư duy Nghị luận xã hội tư tưởng đạo lý.**")
     st.divider()
     
     # Khởi tạo trạng thái phiên làm việc (Session State) cho tab Phòng thí nghiệm văn học
@@ -290,7 +290,7 @@ with tab2:
             if not configure_genai():
                 st.error("⚠️ LỖI: Chưa cấu hình GOOGLE_API_KEY ở backend. Vui lòng kiểm tra mã nguồn (app.py) hoặc cấu hình Streamlit Secrets.")
             else:
-                with st.spinner("Gemini đang thiết lập sơ đồ liên kết vật lý cho chủ đề... Vui lòng đợi trong giây lát."):
+                with st.spinner("Gemini đang thiết lập sơ đồ liên kết và chuẩn bị các hạt thử thách..."):
                     try:
                         # Lấy danh sách model khả dụng
                         available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
@@ -325,8 +325,11 @@ with tab2:
                             "   - Bàn luận mở rộng liên kết với các hạt: Phê phán lối sống ích kỷ/trái đạo lý, Mở rộng góc nhìn thời đại.\\n"
                             "   - Bài học liên kết với các hạt: Nhận thức đúng đắn, Hành động cụ thể áp dụng.\\n"
                             "   - Kết bài liên kết với các hạt: Khẳng định giá trị, Liên hệ bản thân.\\n\\n"
+                            "4. Các hạt tung hỏa mù (Decoys - nhóm 'hoa_mu', size: 75-80, luc: 0.0, mau: '#64748B'):\\n"
+                            "   Hãy sinh thêm từ 2 đến 3 hạt mang tư tưởng tiêu cực, ngụy biện, lệch lạc hoặc hành vi trái ngược hoàn toàn với tinh thần chủ đề (Ví dụ: với chủ đề 'Lòng dũng cảm' thì sinh các hạt hỏa mù như 'Hèn nhát trốn tránh', 'Liều lĩnh mù quáng', 'Thờ ơ ích kỷ').\\n"
+                            "   LƯU Ý CỰC KỲ QUAN TRỌNG: Không khai báo bất kỳ liên kết (links) nào cho các hạt hỏa mù này trong mảng 'links'. Chúng đứng độc lập.\\n\\n"
                             "VẬT LÝ HẠT (Thuộc tính 'luc'):\\n"
-                            "- Các hạt mang tính chất thực tiễn, cụ thể, dẫn chứng phải có lực dương (luc: từ 1.5 đến 3.5) để chúng trĩu nặng xuống dưới đáy màn hình.\\n"
+                            "- Các hạt mang tính chất thực tiễn, cụ thể, dẫn chứng phải có lực dương (luc: từ 1.5 đến 3.5) để chúng trĩu nặng xuống dưới.\\n"
                             "- Các hạt mang tính chất khát vọng, bài học, hành động vươn lên, lý thuyết khái quát phải có lực âm (luc: từ -3.5 đến -1.5) để chúng bay nhẹ lên trên.\\n"
                             "- Các hạt trung lập hoặc trung tâm có lực gần bằng 0 (-0.5 đến 0.5) để tự cân bằng ở giữa.\\n\\n"
                             "BẢNG MÀU SẮC (Mã màu HEX 'mau'):\\n"
@@ -356,26 +359,28 @@ with tab2:
                         
                         if isinstance(parsed_data, dict) and "nodes" in parsed_data and "links" in parsed_data:
                             st.session_state.literature_json = parsed_data
-                            st.success("✅ Đã thiết lập thành công phòng thí nghiệm vật lý văn học liên kết!")
+                            st.success("✅ Đã chuẩn bị phòng thí nghiệm! Hãy sẵn sàng thử thách.")
                         else:
-                            st.error("❌ Dữ liệu trả về từ Gemini không đúng định dạng mạng lưới (nodes & links). Vui lòng thử lại.")
+                            st.error("❌ Dữ liệu trả về không đúng định dạng mạng lưới. Vui lòng thử lại.")
                     except Exception as e:
                         st.error(f"❌ Lỗi xử lý từ Gemini: {str(e)}")
                         
     if st.session_state.literature_json:
-        st.subheader("🔮 Sơ đồ hạt vật lý tương tác liên kết")
+        st.subheader("🧩 Trò chơi ghép nối sơ đồ lập luận xã hội")
         st.markdown(
-            "💡 **Hướng dẫn tương tác mạng lưới:**\\n"
-            "- Các hạt đại diện cho **Luận đề**, **Luận điểm** và **Dẫn chứng/Hành động** được liên kết vật lý với nhau bằng các đường nối.\\n"
-            "- Nhấp chuột kéo thả (PC) hoặc chạm vuốt kéo đi (Smartphone) một hạt bất kỳ, **lực co giãn lò xo** sẽ kéo các hạt liên kết chuyển động theo một cách vô cùng sinh động.\\n"
-            "- Các hạt có **Lực Dương (Dẫn chứng thực tiễn)** sẽ trĩu xuống đáy, các hạt có **Lực Âm (Bài học/Nhận thức)** sẽ nhẹ nhàng bay lên trên."
+            "🎮 **LUẬT CHƠI & HƯỚNG DẪN:**\\n"
+            "1. **Phía bên trái** là các ô tròn nét đứt (slots) gợi ý các phần của bài văn.\\n"
+            "2. **Phía bên phải** là các hạt luận điểm, dẫn chứng và **hạt tung hỏa mù (decoy)** nằm lộn xộn.\\n"
+            "3. Sử dụng ngón tay chạm vuốt (Smartphone) hoặc chuột kéo thả (PC) đưa các hạt từ bên phải lắp vào đúng vị trí bên trái. **Nếu xếp đúng hạt, đường kết nối sẽ tự động phát sáng hiện ra**.\\n"
+            "4. Các hạt hỏa mù (nội dung lệch lạc/sai) không có ô trống nào bên trái, hãy để chúng bay tự do bên phải.\\n"
+            "5. Sau khi ghép xong, hãy nhấn nút **ĐÃ HOÀN THÀNH** ở góc dưới bên phải để kiểm tra. Nếu xếp sai/thiếu, **hệ thống sẽ rung chuyển và nổ văng các hạt chưa snap về bên phải**! Nếu xếp đúng, **luồng sáng tư duy sẽ chạy mượt mà từ Mở bài đến Kết bài**!"
         )
         
         # Chuyển đổi dữ liệu JSON sang chuỗi an toàn
         import json
         literature_data_str = json.dumps(st.session_state.literature_json, ensure_ascii=False)
         
-        # Mã HTML nhúng p5.js với mô phỏng lực lò xo co giãn (Spring-force graph)
+        # Mã HTML nhúng p5.js với trò chơi ghép nối và hiệu ứng nổ tung/luồng sáng
         p5_canvas_html = f"""
         <!DOCTYPE html>
         <html lang="vi">
@@ -411,27 +416,60 @@ with tab2:
             let offsetX = 0;
             let offsetY = 0;
             
+            // Cấu hình responsive
+            let col1, col2, col3, scaleFactor, startX;
+            const outlineGroups = ['mo_bai', 'giai_thich', 'phan_tich_chung_minh', 'ban_luan_mo_rong', 'bai_hoc', 'ket_bai'];
+            
+            // Các biến trạng thái game/hiệu ứng
+            let flashFrames = 0;
+            let shakeFrames = 0;
+            let showExplosionText = false;
+            let showSuccessText = false;
+            let explosionTimer = 0;
+            let successTimer = 0;
+            
+            // Trạng thái chạy luồng sáng khi thắng cuộc
+            let flowActive = false;
+            let flowStep = 0;
+            let flowProgress = 0.0;
+            let seq = [];
+            let childNodesMap = {{}};
+            
+            function calculateLayout() {{
+              // Tự động thu nhỏ hạt trên màn hình nhỏ để tránh tràn màn hình di động
+              scaleFactor = windowWidth < 600 ? 0.68 : 1.0;
+              
+              if (windowWidth > 800) {{
+                col1 = windowWidth * 0.07;
+                col2 = windowWidth * 0.22;
+                col3 = windowWidth * 0.38;
+                startX = windowWidth * 0.52;
+              }} else if (windowWidth > 500) {{
+                col1 = 60;
+                col2 = 160;
+                col3 = 260;
+                startX = 330;
+              }} else {{
+                col1 = 35;
+                col2 = 105;
+                col3 = 175;
+                startX = 225;
+              }}
+            }}
+            
             function setup() {{
               let canvas = createCanvas(windowWidth, 550);
               canvas.parent('canvas-container');
               
+              calculateLayout();
+              
               let nodes = particleData.nodes || [];
               links = particleData.links || [];
               
-              // Khởi tạo các hạt tư duy với phân bố vị trí ban đầu hợp lý
+              // 1. Khởi tạo hạt
               for (let i = 0; i < nodes.length; i++) {{
                 let data = nodes[i];
                 let pSize = parseInt(data.size) || 80;
-                
-                // Đặt tọa độ Y ban đầu dựa trên lực để giảm sốc vật lý lúc ban đầu
-                let initY = 275;
-                if (data.luc > 1.0) {{
-                  initY = random(380, 500);
-                }} else if (data.luc < -1.0) {{
-                  initY = random(50, 180);
-                }} else {{
-                  initY = random(200, 350);
-                }}
                 
                 particles.push({{
                   id: data.id,
@@ -439,127 +477,294 @@ with tab2:
                   nhom: data.nhom,
                   luc: parseFloat(data.luc) || 0,
                   mau: data.mau || '#3B82F6',
-                  radius: pSize / 2,
-                  x: random(pSize, windowWidth - pSize),
-                  y: initY,
+                  origSize: pSize,
+                  radius: (pSize / 2) * scaleFactor,
+                  x: 0,
+                  y: 0,
                   vx: 0,
-                  vy: 0
+                  vy: 0,
+                  isSnapped: false,
+                  isStatic: false,
+                  tx: null,
+                  ty: null
                 }});
+              }}
+              
+              // 2. Định nghĩa vị trí đích (Targets) và phân loại quan hệ cha-con
+              assignTargets();
+              
+              // 3. Phân bổ vị trí khởi tạo: Luận đề nằm tĩnh bên trái, còn lại lộn xộn bên phải
+              let rootNode = nodes.find(n => n.nhom === 'luan_de');
+              for (let p of particles) {{
+                if (rootNode && p.id === rootNode.id) {{
+                  p.x = p.tx;
+                  p.y = p.ty;
+                }} else {{
+                  // Đặt lộn xộn bên phải
+                  p.x = random(startX + p.radius, windowWidth - p.radius);
+                  p.y = random(40, 500);
+                }}
+              }}
+              
+              // 4. Thiết lập chuỗi các nút luận điểm phục vụ hoạt động chạy luồng sáng
+              if (rootNode) {{
+                let rootP = particles.find(p => p.id === rootNode.id);
+                if (rootP) seq.push(rootP);
+              }}
+              
+              let outlineNodes = particles.filter(p => outlineGroups.includes(p.nhom));
+              outlineNodes.sort((a, b) => outlineGroups.indexOf(a.nhom) - outlineGroups.indexOf(b.nhom));
+              seq = seq.concat(outlineNodes);
+            }}
+            
+            function assignTargets() {{
+              let rootNode = particleData.nodes.find(n => n.nhom === 'luan_de');
+              let outlineNodes = particleData.nodes.filter(n => outlineGroups.includes(n.nhom));
+              outlineNodes.sort((a, b) => outlineGroups.indexOf(a.nhom) - outlineGroups.indexOf(b.nhom));
+              
+              childNodesMap = {{}};
+              for (let outline of outlineNodes) {{
+                let children = [];
+                for (let link of links) {{
+                  if (link.source === outline.id) {{
+                    let targetNode = particleData.nodes.find(n => n.id === link.target && n.nhom === 'chi_tiet');
+                    if (targetNode) children.push(targetNode);
+                  }} else if (link.target === outline.id) {{
+                    let sourceNode = particleData.nodes.find(n => n.id === link.source && n.nhom === 'chi_tiet');
+                    if (sourceNode) children.push(sourceNode);
+                  }}
+                }}
+                childNodesMap[outline.id] = children;
+              }}
+              
+              // Khớp vị trí Luận đề
+              if (rootNode) {{
+                let p = particles.find(p => p.id === rootNode.id);
+                if (p) {{
+                  p.tx = col1;
+                  p.ty = 275;
+                  p.isSnapped = true;
+                  p.isStatic = true;
+                }}
+              }}
+              
+              // Khớp vị trí 6 luận điểm lớn
+              let outlineYSpacing = [50, 140, 230, 320, 410, 500];
+              for (let i = 0; i < outlineNodes.length; i++) {{
+                let node = outlineNodes[i];
+                let p = particles.find(p => p.id === node.id);
+                if (p) {{
+                  p.tx = col2;
+                  p.ty = outlineYSpacing[i];
+                }}
+              }}
+              
+              // Khớp vị trí các hạt chi tiết nhánh của từng luận điểm
+              for (let i = 0; i < outlineNodes.length; i++) {{
+                let outline = outlineNodes[i];
+                let oy = outlineYSpacing[i];
+                let children = childNodesMap[outline.id] || [];
+                
+                if (children.length === 1) {{
+                  let p = particles.find(p => p.id === children[0].id);
+                  if (p) {{ p.tx = col3; p.ty = oy; }}
+                }} else if (children.length === 2) {{
+                  let p1 = particles.find(p => p.id === children[0].id);
+                  let p2 = particles.find(p => p.id === children[1].id);
+                  if (p1) {{ p1.tx = col3; p1.ty = oy - 25 * scaleFactor; }}
+                  if (p2) {{ p2.tx = col3; p2.ty = oy + 25 * scaleFactor; }}
+                }} else if (children.length >= 3) {{
+                  let p1 = particles.find(p => p.id === children[0].id);
+                  let p2 = particles.find(p => p.id === children[1].id);
+                  let p3 = particles.find(p => p.id === children[2].id);
+                  if (p1) {{ p1.tx = col3; p1.ty = oy - 35 * scaleFactor; }}
+                  if (p2) {{ p2.tx = col3; p2.ty = oy; }}
+                  if (p3) {{ p3.tx = col3; p3.ty = oy + 35 * scaleFactor; }}
+                }}
               }}
             }}
             
+            function getChildren(parentId) {{
+              let list = [];
+              for (let link of links) {{
+                if (link.source === parentId) {{
+                  let p = particles.find(p => p.id === link.target && p.nhom === 'chi_tiet');
+                  if (p) list.push(p);
+                }} else if (link.target === parentId) {{
+                  let p = particles.find(p => p.id === link.source && p.nhom === 'chi_tiet');
+                  if (p) list.push(p);
+                }}
+              }}
+              return list;
+            }}
+            
             function draw() {{
+              // Hiệu ứng Rung lắc (Camera Shake) khi nổ
+              if (shakeFrames > 0) {{
+                push();
+                translate(random(-6, 6), random(-6, 6));
+                shakeFrames--;
+              }}
+              
               background('#F1F5F9');
               
-              // 1. Vẽ các đường liên kết (Links) giữa các hạt trước
-              stroke('#CBD5E1');
-              strokeWeight(2);
+              // 1. Vẽ các ô chứa mục tiêu (Slots) ở bên trái làm đích kéo thả
+              for (let i = 0; i < particles.length; i++) {{
+                let p = particles[i];
+                if (p.tx !== null && !p.isStatic) {{
+                  stroke('#94A3B8');
+                  strokeWeight(1.5);
+                  drawingContext.setLineDash([4, 6]); // Nét đứt mờ
+                  noFill();
+                  ellipse(p.tx, p.ty, p.radius * 2);
+                  drawingContext.setLineDash([]); // Tắt nét đứt
+                  
+                  // Chỉ hiển thị nhãn gợi ý khi hạt chưa lắp ráp đúng chỗ
+                  if (!p.isSnapped) {{
+                    noStroke();
+                    fill('#94A3B8');
+                    textSize(10 * scaleFactor);
+                    textAlign(CENTER, CENTER);
+                    
+                    let label = "";
+                    if (p.nhom === 'mo_bai') label = "Mở bài";
+                    else if (p.nhom === 'giai_thich') label = "Giải thích";
+                    else if (p.nhom === 'phan_tich_chung_minh') label = "Phân tích";
+                    else if (p.nhom === 'ban_luan_mo_rong') label = "Bàn luận";
+                    else if (p.nhom === 'bai_hoc') label = "Bài học";
+                    else if (p.nhom === 'ket_bai') label = "Kết bài";
+                    else label = "Chi tiết";
+                    
+                    text(label, p.tx, p.ty);
+                  }}
+                }}
+              }}
+              
+              // 2. Vẽ đường nối (Links) - CHỈ hiển thị nếu hạt nguồn & hạt đích đều đã được snap chính xác
+              stroke('#94A3B8');
+              strokeWeight(1.8);
               for (let i = 0; i < links.length; i++) {{
                 let link = links[i];
                 let p1 = particles.find(p => p.id === link.source);
                 let p2 = particles.find(p => p.id === link.target);
                 if (p1 && p2) {{
-                  line(p1.x, p1.y, p2.x, p2.y);
-                }}
-              }}
-              
-              // Vẽ đường phân cách nét đứt tinh tế giữa hai nửa bán cầu
-              stroke('#E2E8F0');
-              strokeWeight(1.5);
-              drawingContext.setLineDash([5, 10]);
-              line(0, height / 2, width, height / 2);
-              drawingContext.setLineDash([]); // Reset nét đứt
-              
-              // Chú thích phân vùng hoạt động
-              noStroke();
-              fill('#64748B');
-              textSize(12);
-              textStyle(BOLD);
-              textAlign(LEFT, TOP);
-              text("🎈 KHÁT VỌNG & BÀI HỌC HÀNH ĐỘNG (Bay lên)", 15, 15);
-              
-              textAlign(LEFT, BOTTOM);
-              text("⚓ THỰC TIỄN & DẪN CHỨNG KHÁI QUÁT (Trĩu xuống)", 15, height - 15);
-              
-              // 2. Tính toán lực co giãn lò xo (spring forces) giữa các liên kết nguồn - đích
-              for (let i = 0; i < links.length; i++) {{
-                let link = links[i];
-                let p1 = particles.find(p => p.id === link.source);
-                let p2 = particles.find(p => p.id === link.target);
-                if (p1 && p2) {{
-                  let dx = p2.x - p1.x;
-                  let dy = p2.y - p1.y;
-                  let d = dist(p1.x, p1.y, p2.x, p2.y);
-                  
-                  // Khoảng cách cân bằng lò xo mong muốn dựa trên kích thước 2 hạt
-                  let targetD = p1.radius + p2.radius + 60; 
-                  let diff = d - targetD;
-                  
-                  // Hệ số co giãn lò xo
-                  let springStrength = 0.035;
-                  let forceX = (dx / (d || 1)) * diff * springStrength;
-                  let forceY = (dy / (d || 1)) * diff * springStrength;
-                  
-                  if (p1 !== draggedParticle) {{
-                    p1.vx += forceX;
-                    p1.vy += forceY;
-                  }}
-                  if (p2 !== draggedParticle) {{
-                    p2.vx -= forceX;
-                    p2.vy -= forceY;
+                  if ((p1.isStatic || p1.isSnapped) && (p2.isStatic || p2.isSnapped)) {{
+                    line(p1.x, p1.y, p2.x, p2.y);
                   }}
                 }}
               }}
               
-              // 3. Cập nhật lực hấp dẫn/lực nổi và vị trí các hạt
+              // 3. Chạy hiệu ứng luồng sáng tư duy khi thắng cuộc
+              if (flowActive) {{
+                flowProgress += 0.022; // tốc độ di chuyển tia sáng
+                if (flowProgress >= 1.0) {{
+                  flowProgress = 0.0;
+                  flowStep++;
+                  if (flowStep >= seq.length - 1) {{
+                    flowActive = false; // hoàn thành luồng
+                  }}
+                }}
+                
+                // Vẽ các đường nối phát sáng màu vàng cam
+                stroke('#F59E0B');
+                strokeWeight(4);
+                
+                for (let s = 0; s <= flowStep; s++) {{
+                  let currentP = seq[s];
+                  if (s < seq.length - 1 && s < flowStep) {{
+                    let nextP = seq[s+1];
+                    line(currentP.x, currentP.y, nextP.x, nextP.y);
+                  }}
+                  
+                  // Đồng thời làm sáng các hạt chi tiết đã snap của luận điểm
+                  let children = getChildren(currentP.id);
+                  for (let child of children) {{
+                    if (child.isSnapped) {{
+                      line(currentP.x, currentP.y, child.x, child.y);
+                    }}
+                  }}
+                }}
+                
+                // Vẽ xung sáng (pulse orb) đang di chuyển
+                if (flowStep < seq.length - 1) {{
+                  let nA = seq[flowStep];
+                  let nB = seq[flowStep+1];
+                  if (nA && nB) {{
+                    let px = lerp(nA.x, nB.x, flowProgress);
+                    let py = lerp(nA.y, nB.y, flowProgress);
+                    line(nA.x, nA.y, px, py);
+                    
+                    fill('#F59E0B');
+                    stroke('#FFFBEB');
+                    strokeWeight(3);
+                    ellipse(px, py, 22 * scaleFactor);
+                  }}
+                }}
+              }}
+              
+              // 4. Cập nhật vật lý và va chạm cho các hạt
               for (let i = 0; i < particles.length; i++) {{
                 let p = particles[i];
                 
-                if (p !== draggedParticle) {{
-                  // Áp dụng lực chìm (dương) hoặc nổi (âm)
-                  p.vy += p.luc * 0.12; 
+                if (p.isSnapped || p.isStatic) {{
+                  // Đứng yên tuyệt đối nếu đã snap đúng logic
+                  p.x = p.tx;
+                  p.y = p.ty;
+                  p.vx = 0;
+                  p.vy = 0;
+                }} else if (p !== draggedParticle) {{
+                  // Hạt tự do nổi/chìm nhẹ
+                  p.vy += p.luc * 0.04;
                   
-                  // Ma sát giảm chấn tránh dao động vô hạn
-                  p.vx *= 0.90;
-                  p.vy *= 0.90;
+                  // Lực đẩy giữ các hạt chưa snap ở phần bên phải (Messy Zone)
+                  if (p.x < startX) {{
+                    p.vx += (startX - p.x) * 0.06;
+                  }}
+                  
+                  p.vx *= 0.92;
+                  p.vy *= 0.92;
                   
                   p.x += p.vx;
                   p.y += p.vy;
                 }}
                 
-                // Giới hạn biên canvas
-                if (p.x < p.radius) {{ p.x = p.radius; p.vx *= -0.5; }}
-                if (p.x > width - p.radius) {{ p.x = width - p.radius; p.vx *= -0.5; }}
-                if (p.y < p.radius) {{ p.y = p.radius; p.vy *= -0.5; }}
-                if (p.y > height - p.radius) {{ p.y = height - p.radius; p.vy *= -0.5; }}
+                // Ranh giới canvas cho hạt tự do
+                if (!p.isSnapped && !p.isStatic) {{
+                  if (p.x < p.radius) {{ p.x = p.radius; p.vx *= -0.5; }}
+                  if (p.x > width - p.radius) {{ p.x = width - p.radius; p.vx *= -0.5; }}
+                  if (p.y < p.radius) {{ p.y = p.radius; p.vy *= -0.5; }}
+                  if (p.y > height - p.radius) {{ p.y = height - p.radius; p.vy *= -0.5; }}
+                }}
               }}
               
-              // 4. Tránh chồng chéo giữa các hạt (đẩy nhau khi va chạm)
+              // Tránh chồng chéo giữa các hạt tự do
               for (let i = 0; i < particles.length; i++) {{
                 for (let j = i + 1; j < particles.length; j++) {{
                   let p1 = particles[i];
                   let p2 = particles[j];
-                  let d = dist(p1.x, p1.y, p2.x, p2.y);
-                  let minDist = p1.radius + p2.radius + 8;
-                  if (d < minDist) {{
-                    let overlap = minDist - d;
-                    let angle = atan2(p2.y - p1.y, p2.x - p1.x);
-                    let forceX = cos(angle) * overlap * 0.2;
-                    let forceY = sin(angle) * overlap * 0.2;
-                    
-                    if (p1 !== draggedParticle) {{
-                      p1.vx -= forceX;
-                      p1.vy -= forceY;
-                    }}
-                    if (p2 !== draggedParticle) {{
-                      p2.vx += forceX;
-                      p2.vy += forceY;
+                  if (!p1.isSnapped || !p2.isSnapped) {{
+                    let d = dist(p1.x, p1.y, p2.x, p2.y);
+                    let minDist = p1.radius + p2.radius + 8;
+                    if (d < minDist) {{
+                      let overlap = minDist - d;
+                      let angle = atan2(p2.y - p1.y, p2.x - p1.x);
+                      let forceX = cos(angle) * overlap * 0.18;
+                      let forceY = sin(angle) * overlap * 0.18;
+                      
+                      if (!p1.isSnapped && !p1.isStatic && p1 !== draggedParticle) {{
+                        p1.vx -= forceX;
+                        p1.vy -= forceY;
+                      }}
+                      if (!p2.isSnapped && !p2.isStatic && p2 !== draggedParticle) {{
+                        p2.vx += forceX;
+                        p2.vy += forceY;
+                      }}
                     }}
                   }}
                 }}
               }}
               
-              // 5. Vẽ các hạt tròn chứa tiêu đề
+              // 5. Vẽ các hạt tư duy
               for (let i = 0; i < particles.length; i++) {{
                 let p = particles[i];
                 
@@ -569,21 +774,77 @@ with tab2:
                   ellipse(p.x + 3, p.y + 5, p.radius * 2 + 6);
                 }}
                 
+                // Vẽ hạt chính (Hạt hỏa mù sẽ có màu xám #64748B)
                 fill(p.mau);
                 stroke('#FFFFFF');
                 strokeWeight(3);
                 ellipse(p.x, p.y, p.radius * 2);
                 
+                // Viết chữ trong hạt
                 drawWrappedText(p.ten, p.x, p.y, p.radius);
+              }}
+              
+              // 6. Vẽ nút bấm ĐÃ HOÀN THÀNH (Capsule Button)
+              let btnW = 150 * scaleFactor;
+              let btnH = 38 * scaleFactor;
+              let btnX = width - btnW - 15;
+              let btnY = height - btnH - 15;
+              
+              let isHover = (mouseX > btnX && mouseX < btnX + btnW && mouseY > btnY && mouseY < btnY + btnH);
+              fill(isHover ? '#0F766E' : '#0D9488');
+              noStroke();
+              rect(btnX, btnY, btnW, btnH, 19 * scaleFactor);
+              
+              fill(255);
+              textSize(12 * scaleFactor);
+              textAlign(CENTER, CENTER);
+              textStyle(BOLD);
+              text("ĐÃ HOÀN THÀNH", btnX + btnW/2, btnY + btnH/2);
+              
+              // 7. Vẽ Flash chớp màn hình khi lỗi
+              if (flashFrames > 0) {{
+                fill(239, 68, 68, map(flashFrames, 0, 15, 0, 100)); // Đỏ chớp tắt
+                noStroke();
+                rect(0, 0, width, height);
+                flashFrames--;
+              }}
+              
+              if (shakeFrames >= 0) {{
+                pop(); // Kết thúc dịch chuyển rung lắc camera
+              }}
+              
+              // 8. Hiển thị thông báo trạng thái
+              if (showExplosionText && explosionTimer > 0) {{
+                fill('#DC2626');
+                stroke('#FFFFFF');
+                strokeWeight(4);
+                textSize(20 * scaleFactor);
+                textStyle(BOLD);
+                textAlign(CENTER, CENTER);
+                text("💥 SAI CẤU TRÚC / CHƯA XẾP XONG! HẠT ĐÃ NỔ TUNG! HÃY CHỌN LẠI! 💥", width / 2, height / 2);
+                explosionTimer--;
+                if (explosionTimer === 0) showExplosionText = false;
+              }}
+              
+              if (showSuccessText && successTimer > 0) {{
+                fill('#0D9488');
+                stroke('#FFFFFF');
+                strokeWeight(4);
+                textSize(22 * scaleFactor);
+                textStyle(BOLD);
+                textAlign(CENTER, CENTER);
+                text("🏆 CHÚC MỪNG! BẠN ĐÃ LẮP RÁP DÀN Ý CHUẨN XÁC! 🏆", width / 2, height / 2);
+                successTimer--;
+                if (successTimer === 0) showSuccessText = false;
               }}
             }}
             
-            // Tự động ngắt dòng thông minh khi hiển thị văn bản trong lòng hạt tròn
+            // Hàm vẽ tự động phân chia dòng văn bản cho vừa khít hạt tròn
             function drawWrappedText(txt, x, y, radius) {{
               fill('#FFFFFF');
               noStroke();
               textAlign(CENTER, CENTER);
-              textSize(11);
+              textSize(11 * scaleFactor);
               textStyle(BOLD);
               
               let words = txt.split(' ');
@@ -604,20 +865,80 @@ with tab2:
                 lines.push(currentLine);
               }}
               
-              let lineHeight = 13;
+              let lineHeight = 13 * scaleFactor;
               let startY = y - (lines.length - 1) * lineHeight / 2;
               for (let i = 0; i < lines.length; i++) {{
                 text(lines[i], x, startY + i * lineHeight);
               }}
             }}
             
-            // Xử lý logic Kéo thả (Drag and Drop)
+            // Logic kiểm định hoàn thành bài học
+            function checkCompletion() {{
+              let allSnapped = true;
+              
+              // Duyệt kiểm tra tất cả các hạt hợp lệ (có tx khác null) xem đã snap hết chưa
+              for (let i = 0; i < particles.length; i++) {{
+                let p = particles[i];
+                if (p.tx !== null && !p.isStatic) {{
+                  if (!p.isSnapped) {{
+                    allSnapped = false;
+                    break;
+                  }}
+                }}
+              }}
+              
+              if (allSnapped) {{
+                showSuccessText = true;
+                successTimer = 220;
+                flowActive = true;
+                flowStep = 0;
+                flowProgress = 0.0;
+                showExplosionText = false;
+              }} else {{
+                // Kích hoạt hiệu ứng bùng nổ camera
+                flashFrames = 15;
+                shakeFrames = 25;
+                showExplosionText = true;
+                explosionTimer = 120;
+                showSuccessText = false;
+                flowActive = false;
+                
+                // Thổi bay các hạt tự do (chưa snap / hạt hỏa mù) ngược về góc bên phải
+                for (let i = 0; i < particles.length; i++) {{
+                  let p = particles[i];
+                  if (!p.isSnapped && !p.isStatic) {{
+                    let angle = random(-PI/4, PI/4); // Thổi chéo về bên phải
+                    let speed = random(14, 24);
+                    p.vx = cos(angle) * speed;
+                    p.vy = sin(angle) * speed;
+                  }}
+                }}
+              }}
+            }}
+            
+            function checkButtonClick(tX, tY) {{
+              let btnW = 150 * scaleFactor;
+              let btnH = 38 * scaleFactor;
+              let btnX = width - btnW - 15;
+              let btnY = height - btnH - 15;
+              
+              if (tX > btnX && tX < btnX + btnW && tY > btnY && tY < btnY + btnH) {{
+                checkCompletion();
+                return true;
+              }}
+              return false;
+            }}
+            
+            // Khởi tạo hoạt động kéo thả
             function startDrag(tX, tY) {{
               for (let i = particles.length - 1; i >= 0; i--) {{
                 let p = particles[i];
                 let d = dist(tX, tY, p.x, p.y);
                 if (d < p.radius) {{
+                  if (p.isStatic) break; // Luận đề trung tâm đứng im không được kéo
+                  
                   draggedParticle = p;
+                  p.isSnapped = false; // Gỡ ra khỏi slot khi bắt đầu kéo
                   offsetX = p.x - tX;
                   offsetY = p.y - tY;
                   p.vx = 0;
@@ -637,11 +958,27 @@ with tab2:
             }}
             
             function endDrag() {{
-              draggedParticle = null;
+              if (draggedParticle) {{
+                // Kiểm định xem hạt thả ra có rơi vào gần vị trí đích (Target slot) không
+                if (draggedParticle.tx !== null) {{
+                  let d = dist(draggedParticle.x, draggedParticle.y, draggedParticle.tx, draggedParticle.ty);
+                  if (d < 35 * scaleFactor) {{
+                    draggedParticle.x = draggedParticle.tx;
+                    draggedParticle.y = draggedParticle.ty;
+                    draggedParticle.isSnapped = true;
+                    draggedParticle.vx = 0;
+                    draggedParticle.vy = 0;
+                  }} else {{
+                    draggedParticle.isSnapped = false;
+                  }}
+                }}
+                draggedParticle = null;
+              }}
             }}
             
             // Chuột (PC)
             function mousePressed() {{
+              if (checkButtonClick(mouseX, mouseY)) return;
               startDrag(mouseX, mouseY);
             }}
             
@@ -661,6 +998,7 @@ with tab2:
                 tX = touches[0].x;
                 tY = touches[0].y;
               }}
+              if (checkButtonClick(tX, tY)) return;
               startDrag(tX, tY);
             }}
             
@@ -673,7 +1011,7 @@ with tab2:
               }}
               moveDrag(tX, tY);
               
-              // CHẶN hành vi cuộn trang di động khi đang tương tác kéo hạt
+              // CHẶN cuộn màn hình di động khi kéo thả
               if (draggedParticle) {{
                 return false; 
               }}
@@ -683,9 +1021,26 @@ with tab2:
               endDrag();
             }}
             
-            // Responsive
+            // Responsive khi xoay ngang/dọc điện thoại hoặc resize
             function windowResized() {{
               resizeCanvas(windowWidth, 550);
+              calculateLayout();
+              
+              for (let i = 0; i < particles.length; i++) {{
+                let p = particles[i];
+                p.radius = (p.origSize / 2) * scaleFactor;
+              }}
+              
+              assignTargets();
+              
+              // Đưa các hạt đã snap về vị trí co giãn mới
+              for (let i = 0; i < particles.length; i++) {{
+                let p = particles[i];
+                if (p.isSnapped || p.isStatic) {{
+                  p.x = p.tx;
+                  p.y = p.ty;
+                }}
+              }}
             }}
           </script>
         </body>
