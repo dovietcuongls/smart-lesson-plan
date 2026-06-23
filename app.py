@@ -261,11 +261,11 @@ Trả về kết quả 100% dưới dạng Markdown Table để tôi hiển th�
                 st.error(f"❌ Xảy ra lỗi trong quá trình xử lý: {str(e)}")
 
 # ------------------------------------------
-# TAB 2: PHÒNG THÍ NGHIỆM VĂN HỌC
+# TAB 2: PHÒNG THÍ NGHIỆM VĂN HỌC (Mô phỏng sơ đồ liên kết)
 # ------------------------------------------
 with tab2:
     st.title("🧪 Phòng Thí Nghiệm Văn Học")
-    st.markdown("**Ứng dụng học tập thông minh: Trực quan hóa cấu trúc sơ đồ tư duy bằng hạt vật lý tương tác.**")
+    st.markdown("**Ứng dụng học tập thông minh: Trực quan hóa cấu trúc sơ đồ tư duy bằng hạt vật lý tương tác liên kết.**")
     st.divider()
     
     # Khởi tạo trạng thái phiên làm việc (Session State) cho tab Phòng thí nghiệm văn học
@@ -290,7 +290,7 @@ with tab2:
             if not configure_genai():
                 st.error("⚠️ LỖI: Chưa cấu hình GOOGLE_API_KEY ở backend. Vui lòng kiểm tra mã nguồn (app.py) hoặc cấu hình Streamlit Secrets.")
             else:
-                with st.spinner("Gemini đang thiết kế cấu trúc hạt vật lý cho chủ đề... Vui lòng đợi trong giây lát."):
+                with st.spinner("Gemini đang thiết lập sơ đồ liên kết vật lý cho chủ đề... Vui lòng đợi trong giây lát."):
                     try:
                         # Lấy danh sách model khả dụng
                         available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
@@ -307,19 +307,37 @@ with tab2:
                         model = genai.GenerativeModel(selected_model)
                         
                         system_instruction = (
-                            "Bạn là một chuyên gia giảng dạy Ngữ văn THPT độc đáo và sáng tạo. "
-                            "Nhiệm vụ của bạn là phân tích chủ đề nghị luận xã hội được cung cấp và thiết kế cấu trúc mạng lưới hạt tư duy tương tác vật lý (dưới dạng JSON).\\n"
-                            "Hãy tạo ra từ 6 đến 9 hạt tư duy phân chia đều cho các góc nhìn:\\n"
-                            "- Khái niệm, khía cạnh cốt lõi (lực âm nhẹ hoặc dương nhẹ gần 0).\\n"
-                            "- Các dẫn chứng thực tế tiêu biểu (BẮT BUỘC có lực dương lớn, từ 1.5 đến 4.0, đại diện cho thực tế trĩu nặng đặt ở dưới đáy).\\n"
-                            "- Các bài học hành động, bài học nhận thức cụ thể (BẮT BUỘC có lực âm lớn, từ -4.0 đến -1.5, đại diện cho ý chí hướng lên trên).\\n\\n"
-                            "YÊU CẦU ĐỊNH DẠNG: Trả về kết quả là một chuỗi mảng JSON hợp lệ duy nhất, tuyệt đối không có thêm bất kỳ lời dẫn giải thích hay định dạng markdown nào khác ngoài JSON.\\n"
-                            "Mỗi đối tượng trong mảng phải chứa đầy đủ và chính xác các trường sau:\\n"
-                            "- id: số nguyên duy nhất từ 1 trở đi\\n"
-                            "- ten: tên ngắn gọn của hạt tư duy (2-5 từ, ví dụ: 'Nghị lực của Nick Vujicic', 'Rèn luyện thói quen tốt', 'Lòng vị tha')\\n"
-                            "- luc: số thực trong khoảng từ -5.0 đến 5.0 (lực dương hạt sẽ trĩu xuống, lực âm hạt sẽ bay lên)\\n"
-                            "- mau: mã màu HEX (dùng màu tươi sáng phù hợp với từng loại hạt, ví dụ màu ấm/đỏ/cam cho dẫn chứng, màu xanh lá/dương cho bài học, màu pastel cho khái niệm)\\n"
-                            "- size: số nguyên từ 70 đến 100 (kích thước hạt theo pixel để ghi chữ rõ ràng)\\n"
+                            "Bạn là một chuyên gia giảng dạy Ngữ văn THPT độc đáo và sáng tạo. Nhiệm vụ của bạn là phân tích chủ đề nghị luận xã hội về tư tưởng đạo lý được cung cấp và thiết kế một cấu trúc sơ đồ tư duy mạng lưới các hạt tương tác liên kết (dưới dạng JSON chứa 'nodes' và 'links').\\n\\n"
+                            "Cấu trúc sơ đồ tư duy bắt buộc phải tuân theo cấu trúc bài nghị luận xã hội chuẩn như sau:\\n"
+                            "1. Luận đề (Core Theme): Là hạt trung tâm (nhóm 'luan_de'), kích thước lớn (size: 100-110), lực (luc): 0.0.\\n"
+                            "2. Các luận điểm lớn của bài viết (nhóm 'luan_diem', size: 85-90), bao gồm:\\n"
+                            "   - Mở bài (Mở bài: Đặt vấn đề, luc: -0.2)\\n"
+                            "   - Giải thích (Thân bài: Giải thích ý nghĩa, luc: -0.1)\\n"
+                            "   - Phân tích & Chứng minh (Thân bài: Phân tích & Chứng minh, luc: 0.2)\\n"
+                            "   - Bàn luận mở rộng (Thân bài: Bàn luận mở rộng, luc: 0.1)\\n"
+                            "   - Bài học (Thân bài: Bài học bản thân, luc: -0.3)\\n"
+                            "   - Kết bài (Kết bài: Thông điệp gửi gắm, luc: -0.2)\\n"
+                            "   Tất cả các hạt luận điểm lớn này phải có liên kết trực tiếp (links) với hạt Luận đề trung tâm.\\n"
+                            "3. Các hạt chi tiết, dẫn chứng, hành động (nhóm 'chi_tiet', size: 70-80), liên kết với hạt luận điểm lớn tương ứng của nó:\\n"
+                            "   - Mở bài liên kết với các hạt: Dẫn dắt, Trích dẫn/Khái niệm, Khái quát ý nghĩa.\\n"
+                            "   - Giải thích liên kết với các hạt: Nghĩa đen/nghĩa bóng, Ý nghĩa cốt lõi.\\n"
+                            "   - Phân tích & Chứng minh liên kết với các hạt: Lý do vì sao cần tư tưởng này?, Dẫn chứng thực tế 1 (ghi rõ tên tấm gương nổi tiếng cụ thể), Dẫn chứng thực tế 2 (tấm gương tiêu biểu khác).\\n"
+                            "   - Bàn luận mở rộng liên kết với các hạt: Phê phán lối sống ích kỷ/trái đạo lý, Mở rộng góc nhìn thời đại.\\n"
+                            "   - Bài học liên kết với các hạt: Nhận thức đúng đắn, Hành động cụ thể áp dụng.\\n"
+                            "   - Kết bài liên kết với các hạt: Khẳng định giá trị, Liên hệ bản thân.\\n\\n"
+                            "VẬT LÝ HẠT (Thuộc tính 'luc'):\\n"
+                            "- Các hạt mang tính chất thực tiễn, cụ thể, dẫn chứng phải có lực dương (luc: từ 1.5 đến 3.5) để chúng trĩu nặng xuống dưới đáy màn hình.\\n"
+                            "- Các hạt mang tính chất khát vọng, bài học, hành động vươn lên, lý thuyết khái quát phải có lực âm (luc: từ -3.5 đến -1.5) để chúng bay nhẹ lên trên.\\n"
+                            "- Các hạt trung lập hoặc trung tâm có lực gần bằng 0 (-0.5 đến 0.5) để tự cân bằng ở giữa.\\n\\n"
+                            "BẢNG MÀU SẮC (Mã màu HEX 'mau'):\\n"
+                            "- Luận đề: Màu đặc biệt nổi bật (ví dụ: Đỏ đậm #DC2626 hoặc Xanh tối #1E3A8A).\\n"
+                            "- Luận điểm chính: Các tông màu trung tính sang trọng (ví dụ: Xanh dương #3B82F6, Xanh ngọc #0D9488, Tím #7C3AED).\\n"
+                            "- Chi tiết & Dẫn chứng nặng: Màu ấm (ví dụ: Cam #F97316, Đỏ cam #EA580C) để dễ nhận diện ở đáy.\\n"
+                            "- Bài học & Hành động nhẹ: Màu mát (ví dụ: Xanh lá sáng #10B981, Xanh chuối #84CC16) để bay lên trên.\\n\\n"
+                            "YÊU CẦU ĐỊNH DẠNG TRẢ VỀ:\\n"
+                            "- Chỉ trả về chuỗi JSON chuẩn chứa hai mảng 'nodes' và 'links', không chứa bất kỳ lời dẫn giải thích hay markdown nào khác ngoài JSON.\\n"
+                            "- Mỗi node có cấu trúc: {\\\"id\\\": số, \\\"ten\\\": \\\"chuỗi ngắn 2-5 từ\\\", \\\"nhom\\\": \\\"nhóm\\\", \\\"luc\\\": số thực, \\\"mau\\\": \\\"mã HEX\\\", \\\"size\\\": số nguyên}\\n"
+                            "- Mỗi link có cấu trúc: {\\\"source\\\": id_nguon, \\\"target\\\": id_dich}\\n"
                         )
                         
                         prompt = f"{system_instruction}\\n\\nChủ đề: {topic_input}"
@@ -336,28 +354,28 @@ with tab2:
                         import json
                         parsed_data = json.loads(response_text)
                         
-                        if isinstance(parsed_data, list):
+                        if isinstance(parsed_data, dict) and "nodes" in parsed_data and "links" in parsed_data:
                             st.session_state.literature_json = parsed_data
-                            st.success("✅ Đã thiết lập thành công phòng thí nghiệm vật lý văn học!")
+                            st.success("✅ Đã thiết lập thành công phòng thí nghiệm vật lý văn học liên kết!")
                         else:
-                            st.error("❌ Dữ liệu trả về từ Gemini không đúng định dạng danh sách hạt. Vui lòng thử lại.")
+                            st.error("❌ Dữ liệu trả về từ Gemini không đúng định dạng mạng lưới (nodes & links). Vui lòng thử lại.")
                     except Exception as e:
                         st.error(f"❌ Lỗi xử lý từ Gemini: {str(e)}")
                         
     if st.session_state.literature_json:
-        st.subheader("🔮 Phòng thí nghiệm hạt vật lý tương tác")
+        st.subheader("🔮 Sơ đồ hạt vật lý tương tác liên kết")
         st.markdown(
-            "💡 **Hướng dẫn chạm vuốt di động & máy tính:**\\n"
-            "- Sử dụng ngón tay chạm vuốt (trên điện thoại) hoặc nhấp chuột kéo thả (trên máy tính) để di chuyển các hạt tự do.\\n"
-            "- Các hạt có **Lực Dương (Dẫn chứng/Thực tiễn)** sẽ tự động trĩu nặng xuống đáy màn hình.\\n"
-            "- Các hạt có **Lực Âm (Bài học/Nhận thức)** sẽ tự động nhẹ nhàng bay lên phía trên màn hình."
+            "💡 **Hướng dẫn tương tác mạng lưới:**\\n"
+            "- Các hạt đại diện cho **Luận đề**, **Luận điểm** và **Dẫn chứng/Hành động** được liên kết vật lý với nhau bằng các đường nối.\\n"
+            "- Nhấp chuột kéo thả (PC) hoặc chạm vuốt kéo đi (Smartphone) một hạt bất kỳ, **lực co giãn lò xo** sẽ kéo các hạt liên kết chuyển động theo một cách vô cùng sinh động.\\n"
+            "- Các hạt có **Lực Dương (Dẫn chứng thực tiễn)** sẽ trĩu xuống đáy, các hạt có **Lực Âm (Bài học/Nhận thức)** sẽ nhẹ nhàng bay lên trên."
         )
         
         # Chuyển đổi dữ liệu JSON sang chuỗi an toàn
         import json
         literature_data_str = json.dumps(st.session_state.literature_json, ensure_ascii=False)
         
-        # Mã HTML nhúng p5.js tương thích cao với di động
+        # Mã HTML nhúng p5.js với mô phỏng lực lò xo co giãn (Spring-force graph)
         p5_canvas_html = f"""
         <!DOCTYPE html>
         <html lang="vi">
@@ -377,7 +395,7 @@ with tab2:
             }}
             #canvas-container {{
               width: 100%;
-              height: 500px;
+              height: 550px;
               display: block;
               position: relative;
             }}
@@ -388,27 +406,42 @@ with tab2:
           <script>
             const particleData = {literature_data_str};
             let particles = [];
+            let links = [];
             let draggedParticle = null;
             let offsetX = 0;
             let offsetY = 0;
             
             function setup() {{
-              // Sử dụng width=100% bằng cách đo chiều rộng cửa sổ trình duyệt (windowWidth)
-              let canvas = createCanvas(windowWidth, 500);
+              let canvas = createCanvas(windowWidth, 550);
               canvas.parent('canvas-container');
               
-              // Khởi tạo các hạt tư duy tư thế ngẫu nhiên ở khu vực trung tâm
-              for (let i = 0; i < particleData.length; i++) {{
-                let data = particleData[i];
+              let nodes = particleData.nodes || [];
+              links = particleData.links || [];
+              
+              // Khởi tạo các hạt tư duy với phân bố vị trí ban đầu hợp lý
+              for (let i = 0; i < nodes.length; i++) {{
+                let data = nodes[i];
                 let pSize = parseInt(data.size) || 80;
+                
+                // Đặt tọa độ Y ban đầu dựa trên lực để giảm sốc vật lý lúc ban đầu
+                let initY = 275;
+                if (data.luc > 1.0) {{
+                  initY = random(380, 500);
+                }} else if (data.luc < -1.0) {{
+                  initY = random(50, 180);
+                }} else {{
+                  initY = random(200, 350);
+                }}
+                
                 particles.push({{
                   id: data.id,
                   ten: data.ten,
+                  nhom: data.nhom,
                   luc: parseFloat(data.luc) || 0,
                   mau: data.mau || '#3B82F6',
                   radius: pSize / 2,
                   x: random(pSize, windowWidth - pSize),
-                  y: random(150, 350),
+                  y: initY,
                   vx: 0,
                   vy: 0
                 }});
@@ -418,14 +451,26 @@ with tab2:
             function draw() {{
               background('#F1F5F9');
               
-              // Vẽ đường phân cách nét đứt tinh tế
+              // 1. Vẽ các đường liên kết (Links) giữa các hạt trước
               stroke('#CBD5E1');
               strokeWeight(2);
-              drawingContext.setLineDash([6, 12]);
-              line(0, height / 2, width, height / 2);
-              drawingContext.setLineDash([]); // Tắt nét đứt
+              for (let i = 0; i < links.length; i++) {{
+                let link = links[i];
+                let p1 = particles.find(p => p.id === link.source);
+                let p2 = particles.find(p => p.id === link.target);
+                if (p1 && p2) {{
+                  line(p1.x, p1.y, p2.x, p2.y);
+                }}
+              }}
               
-              // Chú thích phân vùng hoạt động của các hạt
+              // Vẽ đường phân cách nét đứt tinh tế giữa hai nửa bán cầu
+              stroke('#E2E8F0');
+              strokeWeight(1.5);
+              drawingContext.setLineDash([5, 10]);
+              line(0, height / 2, width, height / 2);
+              drawingContext.setLineDash([]); // Reset nét đứt
+              
+              // Chú thích phân vùng hoạt động
               noStroke();
               fill('#64748B');
               textSize(12);
@@ -436,41 +481,71 @@ with tab2:
               textAlign(LEFT, BOTTOM);
               text("⚓ THỰC TIỄN & DẪN CHỨNG KHÁI QUÁT (Trĩu xuống)", 15, height - 15);
               
-              // Cập nhật vật lý và giới hạn biên cho từng hạt
+              // 2. Tính toán lực co giãn lò xo (spring forces) giữa các liên kết nguồn - đích
+              for (let i = 0; i < links.length; i++) {{
+                let link = links[i];
+                let p1 = particles.find(p => p.id === link.source);
+                let p2 = particles.find(p => p.id === link.target);
+                if (p1 && p2) {{
+                  let dx = p2.x - p1.x;
+                  let dy = p2.y - p1.y;
+                  let d = dist(p1.x, p1.y, p2.x, p2.y);
+                  
+                  // Khoảng cách cân bằng lò xo mong muốn dựa trên kích thước 2 hạt
+                  let targetD = p1.radius + p2.radius + 60; 
+                  let diff = d - targetD;
+                  
+                  // Hệ số co giãn lò xo
+                  let springStrength = 0.035;
+                  let forceX = (dx / (d || 1)) * diff * springStrength;
+                  let forceY = (dy / (d || 1)) * diff * springStrength;
+                  
+                  if (p1 !== draggedParticle) {{
+                    p1.vx += forceX;
+                    p1.vy += forceY;
+                  }}
+                  if (p2 !== draggedParticle) {{
+                    p2.vx -= forceX;
+                    p2.vy -= forceY;
+                  }}
+                }}
+              }}
+              
+              // 3. Cập nhật lực hấp dẫn/lực nổi và vị trí các hạt
               for (let i = 0; i < particles.length; i++) {{
                 let p = particles[i];
                 
                 if (p !== draggedParticle) {{
-                  // Lực đẩy/hút dọc theo trục Y dựa trên thuộc tính lực (luc)
+                  // Áp dụng lực chìm (dương) hoặc nổi (âm)
                   p.vy += p.luc * 0.12; 
                   
-                  // Giảm tốc/Ma sát
-                  p.vx *= 0.93;
-                  p.vy *= 0.93;
+                  // Ma sát giảm chấn tránh dao động vô hạn
+                  p.vx *= 0.90;
+                  p.vy *= 0.90;
                   
                   p.x += p.vx;
                   p.y += p.vy;
                 }}
                 
-                // Giới hạn biên cứng, nảy lại khi va chạm viền
+                // Giới hạn biên canvas
                 if (p.x < p.radius) {{ p.x = p.radius; p.vx *= -0.5; }}
                 if (p.x > width - p.radius) {{ p.x = width - p.radius; p.vx *= -0.5; }}
                 if (p.y < p.radius) {{ p.y = p.radius; p.vy *= -0.5; }}
                 if (p.y > height - p.radius) {{ p.y = height - p.radius; p.vy *= -0.5; }}
               }}
               
-              // Tính toán va chạm đẩy nhau giữa các hạt để không bị xếp đè lên nhau
+              // 4. Tránh chồng chéo giữa các hạt (đẩy nhau khi va chạm)
               for (let i = 0; i < particles.length; i++) {{
                 for (let j = i + 1; j < particles.length; j++) {{
                   let p1 = particles[i];
                   let p2 = particles[j];
                   let d = dist(p1.x, p1.y, p2.x, p2.y);
-                  let minDist = p1.radius + p2.radius + 6;
+                  let minDist = p1.radius + p2.radius + 8;
                   if (d < minDist) {{
                     let overlap = minDist - d;
                     let angle = atan2(p2.y - p1.y, p2.x - p1.x);
-                    let forceX = cos(angle) * overlap * 0.25;
-                    let forceY = sin(angle) * overlap * 0.25;
+                    let forceX = cos(angle) * overlap * 0.2;
+                    let forceY = sin(angle) * overlap * 0.2;
                     
                     if (p1 !== draggedParticle) {{
                       p1.vx -= forceX;
@@ -484,12 +559,11 @@ with tab2:
                 }}
               }}
               
-              // Vẽ các hạt tư duy và đổ bóng tương tác
+              // 5. Vẽ các hạt tròn chứa tiêu đề
               for (let i = 0; i < particles.length; i++) {{
                 let p = particles[i];
                 
                 if (p === draggedParticle) {{
-                  // Đổ bóng đậm hơn khi kéo thả hạt
                   fill('rgba(15, 23, 42, 0.15)');
                   noStroke();
                   ellipse(p.x + 3, p.y + 5, p.radius * 2 + 6);
@@ -500,12 +574,11 @@ with tab2:
                 strokeWeight(3);
                 ellipse(p.x, p.y, p.radius * 2);
                 
-                // Vẽ chữ hiển thị thông tin bên trong hạt tư duy
                 drawWrappedText(p.ten, p.x, p.y, p.radius);
               }}
             }}
             
-            // Hàm vẽ tự động phân chia dòng văn bản cho vừa khít hạt tròn
+            // Tự động ngắt dòng thông minh khi hiển thị văn bản trong lòng hạt tròn
             function drawWrappedText(txt, x, y, radius) {{
               fill('#FFFFFF');
               noStroke();
@@ -538,7 +611,7 @@ with tab2:
               }}
             }}
             
-            // Khởi tạo hoạt động kéo thả cho chuột và chạm cảm ứng
+            // Xử lý logic Kéo thả (Drag and Drop)
             function startDrag(tX, tY) {{
               for (let i = particles.length - 1; i >= 0; i--) {{
                 let p = particles[i];
@@ -567,7 +640,7 @@ with tab2:
               draggedParticle = null;
             }}
             
-            // Sử dụng các sự kiện chuột tiêu chuẩn trên PC
+            // Chuột (PC)
             function mousePressed() {{
               startDrag(mouseX, mouseY);
             }}
@@ -576,7 +649,11 @@ with tab2:
               moveDrag(mouseX, mouseY);
             }}
             
-            // Sử dụng các sự kiện chạm vuốt trên Điện thoại thông minh (Smartphones)
+            function mouseReleased() {{
+              endDrag();
+            }}
+            
+            // Cảm ứng (Smartphone)
             function touchStarted() {{
               let tX = mouseX;
               let tY = mouseY;
@@ -596,7 +673,7 @@ with tab2:
               }}
               moveDrag(tX, tY);
               
-              // CHẶN hành vi cuộn trang của trình duyệt di động khi đang kéo thả hạt
+              // CHẶN hành vi cuộn trang di động khi đang tương tác kéo hạt
               if (draggedParticle) {{
                 return false; 
               }}
@@ -606,16 +683,16 @@ with tab2:
               endDrag();
             }}
             
-            // Tự động co giãn khi kích thước màn hình thay đổi
+            // Responsive
             function windowResized() {{
-              resizeCanvas(windowWidth, 500);
+              resizeCanvas(windowWidth, 550);
             }}
           </script>
         </body>
         </html>
         """
         
-        st.components.v1.html(p5_canvas_html, height=520, scrolling=False)
+        st.components.v1.html(p5_canvas_html, height=570, scrolling=False)
 
 # ==========================================
 # FOOTER
