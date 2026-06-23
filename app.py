@@ -30,7 +30,7 @@ def configure_genai():
 # ==========================================
 # THIẾT LẬP GIAO DIỆN (UI)
 # ==========================================
-st.set_page_config(page_title="Trợ lý Xử lý Văn bản Chỉ đạo", page_icon="📝", layout="wide")
+st.set_page_config(page_title="Công cụ số hóa", page_icon="📝", layout="wide")
 
 # Áp dụng Custom CSS cho tông màu Xanh đậm - Trắng và Footer
 st.markdown("""
@@ -164,7 +164,7 @@ with tab1:
         """)
         
     with col_right:
-        st.title("🏛️ Trợ lý Xử lý Văn bản Chỉ đạo")
+        st.title("🏛️ Công cụ số hóa")
         st.markdown("**Số hóa quy trình bóc tách công việc từ văn bản nhà nước/nhà trường một cách tự động và chính xác.**")
         st.divider()
 
@@ -440,6 +440,10 @@ with tab2:
             // Pháo hoa chào mừng chiến thắng
             let fireworks = [];
             
+            // Trạng thái Popup thông báo lỗi & giải thích
+            let showErrorPopup = false;
+            let errorList = [];
+            
             // Web Audio API Click/Snap Sound Synthesizer
             let audioCtx = null;
             
@@ -629,6 +633,8 @@ with tab2:
                   isSnapped: false,
                   isStatic: false,
                   currentSlotId: null,
+                  parentSlotId: null,
+                  correctParentId: null,
                   isCorrectlySnapped: false,
                   tx: null,
                   ty: null
@@ -696,7 +702,7 @@ with tab2:
                 node.tx = col2;
                 node.ty = outlineYSpacing[i] || 275;
                 
-                // Đăng ký slot đích
+                // Đăng ký slot đích (chỉ có luận điểm cấp 1 được hiện slot nét đứt)
                 slots.push({{ id: 'outline_' + node.id, x: col2, y: node.ty, pId: node.id }});
               }}
               
@@ -727,36 +733,24 @@ with tab2:
                 childNodesMap[outline.id] = children;
               }}
               
-              // Đặt vị trí cho các hạt chi tiết con ở cột 3
+              // Thiết lập correctParentId cho các hạt chi tiết con
               for (let i = 0; i < outlineNodes.length; i++) {{
                 let outline = outlineNodes[i];
-                let oy = outlineYSpacing[i];
                 let children = childNodesMap[outline.id] || [];
-                
-                if (children.length === 1) {{
-                  let p = children[0];
-                  p.tx = col3; p.ty = oy;
-                  slots.push({{ id: 'child_' + p.id, x: col3, y: oy, pId: p.id }});
-                }} else if (children.length === 2) {{
-                  let p1 = children[0];
-                  let p2 = children[1];
-                  if (p1) {{ p1.tx = col3; p1.ty = oy - 25 * scaleFactor; slots.push({{ id: 'child_' + p1.id, x: col3, y: p1.ty, pId: p1.id }}); }}
-                  if (p2) {{ p2.tx = col3; p2.ty = oy + 25 * scaleFactor; slots.push({{ id: 'child_' + p2.id, x: col3, y: p2.ty, pId: p2.id }}); }}
-                }} else if (children.length >= 3) {{
-                  let p1 = children[0];
-                  let p2 = children[1];
-                  let p3 = children[2];
-                  if (p1) {{ p1.tx = col3; p1.ty = oy - 35 * scaleFactor; slots.push({{ id: 'child_' + p1.id, x: col3, y: p1.ty, pId: p1.id }}); }}
-                  if (p2) {{ p2.tx = col3; p2.ty = oy; slots.push({{ id: 'child_' + p2.id, x: col3, y: p2.ty, pId: p2.id }}); }}
-                  if (p3) {{ p3.tx = col3; p3.ty = oy + 35 * scaleFactor; slots.push({{ id: 'child_' + p3.id, x: col3, y: p3.ty, pId: p3.id }}); }}
+                for (let child of children) {{
+                  child.correctParentId = outline.id;
+                  child.tx = null;
+                  child.ty = null;
                 }}
               }}
               
-              // Đánh dấu hạt hỏa mù
+              // Đánh dấu hạt hỏa mù (các hạt không phải luận đề, không phải luận điểm cấp 1 và không có parent)
               for (let i = 0; i < particles.length; i++) {{
                 let p = particles[i];
-                if (p.tx === null && p.ty === null) {{
+                if (p.nhomType !== 'luan_de' && !outlineGroups.includes(p.nhomType) && !p.correctParentId) {{
                   p.nhomType = 'hoa_mu';
+                  p.tx = null;
+                  p.ty = null;
                 }}
               }}
             }}
@@ -888,24 +882,28 @@ with tab2:
                 strokeWeight(1.5);
                 drawingContext.setLineDash([4, 6]); // Nét đứt mờ
                 noFill();
-                ellipse(slot.x, slot.y, (outlineGroups.includes(particles.find(p=>p.id===slot.pId)?.nhomType) ? 88/2 : 78/2) * 2 * scaleFactor);
+                ellipse(slot.x, slot.y, 88 * scaleFactor);
                 drawingContext.setLineDash([]); // Tắt nét đứt
-                
-                // Đã ẩn hoàn toàn dòng chữ gợi ý chữ mờ để tăng độ thử thách
               }}
               
-              // 2. Vẽ đường nối (Links) - CHỈ hiển thị nếu cả 2 hạt liên quan đều đã được snap CHÍNH XÁC vào ô của nó
+              // 2. Vẽ đường nối (Links)
               stroke('#94A3B8');
               strokeWeight(1.8);
-              for (let i = 0; i < links.length; i++) {{
-                let link = links[i];
-                let p1 = particles.find(p => p.id === Number(link.source));
-                let p2 = particles.find(p => p.id === Number(link.target));
-                if (p1 && p2) {{
-                  let p1Ok = p1.isStatic || (p1.isSnapped && p1.isCorrectlySnapped);
-                  let p2Ok = p2.isStatic || (p2.isSnapped && p2.isCorrectlySnapped);
-                  if (p1Ok && p2Ok) {{
-                    line(p1.x, p1.y, p2.x, p2.y);
+              
+              // Vẽ các đường nối cố định từ hạt luận đề (Root) đến 6 slot luận điểm lớn cấp 1 ở cột 2
+              let rootNode = particles.find(p => p.nhomType === 'luan_de');
+              if (rootNode) {{
+                for (let slot of slots) {{
+                  line(rootNode.x, rootNode.y, slot.x, slot.y);
+                }}
+              }}
+              
+              // Vẽ đường nối từ các slot luận điểm cấp 1 sang các hạt luận điểm cấp 2 đã snap vào slot đó (ĐÚNG hay SAI đều vẽ)
+              for (let p of particles) {{
+                if (p.isSnapped && p.parentSlotId) {{
+                  let slot = slots.find(s => s.id === p.parentSlotId);
+                  if (slot) {{
+                    line(slot.x, slot.y, p.x, p.y);
                   }}
                 }}
               }}
@@ -935,7 +933,7 @@ with tab2:
                   // Đồng thời làm sáng các hạt chi tiết đã snap của luận điểm
                   let children = getChildren(currentP.id);
                   for (let child of children) {{
-                    if (child.isSnapped && child.isCorrectlySnapped) {{
+                    if (child.isSnapped && child.parentSlotId === 'outline_' + currentP.id) {{
                       line(currentP.x, currentP.y, child.x, child.y);
                     }}
                   }}
@@ -958,17 +956,45 @@ with tab2:
                 }}
               }}
               
+              // Cập nhật vị trí của các hạt cấp 2 / hạt hỏa mù đã snap vào các slot cấp 1 ở cột 2
+              for (let i = 0; i < slots.length; i++) {{
+                let slot = slots[i];
+                let snappedChildren = particles.filter(p => p.isSnapped && p.parentSlotId === slot.id);
+                // Sắp xếp theo ID để duy trì thứ tự ổn định
+                snappedChildren.sort((a, b) => a.id - b.id);
+                
+                let count = snappedChildren.length;
+                for (let k = 0; k < count; k++) {{
+                  let child = snappedChildren[k];
+                  child.x = col3;
+                  if (count === 1) {{
+                    child.y = slot.y;
+                  }} else if (count === 2) {{
+                    child.y = slot.y + (k === 0 ? -28 : 28) * scaleFactor;
+                  }} else if (count === 3) {{
+                    child.y = slot.y + (k === 0 ? -42 : (k === 1 ? 0 : 42)) * scaleFactor;
+                  }} else {{
+                    let spacing = 90 * scaleFactor / (count - 1);
+                    child.y = slot.y - 45 * scaleFactor + k * spacing;
+                  }}
+                  child.vx = 0;
+                  child.vy = 0;
+                }}
+              }}
+              
               // 4. Cập nhật vật lý và va chạm cho các hạt
               for (let i = 0; i < particles.length; i++) {{
                 let p = particles[i];
                 
                 if (p.isSnapped) {{
-                  // Đứng yên tại ô slot nó dính vào (kể cả snap sai)
-                  let slot = slots.find(s => s.id === p.currentSlotId);
-                  if (slot) {{
-                    p.x = slot.x;
-                    p.y = slot.y;
+                  if (p.currentSlotId) {{
+                    let slot = slots.find(s => s.id === p.currentSlotId);
+                    if (slot) {{
+                      p.x = slot.x;
+                      p.y = slot.y;
+                    }}
                   }}
+                  // Hạt cấp 2 sử dụng parentSlotId và vị trí đã được tính toán ở trên
                   p.vx = 0;
                   p.vy = 0;
                 }} else if (p.isStatic) {{
@@ -1039,7 +1065,7 @@ with tab2:
                 }}
                 
                 // Vẽ hạt chính (Hạt hỏa mù sẽ có màu xám #64748B)
-                fill(p.mau);
+                fill(p.nhomType === 'hoa_mu' ? '#64748B' : p.mau);
                 stroke('#FFFFFF');
                 strokeWeight(3);
                 ellipse(p.x, p.y, p.radius * 2);
@@ -1081,18 +1107,6 @@ with tab2:
               }}
               
               // 9. Hiển thị thông báo trạng thái
-              if (showExplosionText && explosionTimer > 0) {{
-                fill('#DC2626');
-                stroke('#FFFFFF');
-                strokeWeight(4);
-                textSize(20 * scaleFactor);
-                textStyle(BOLD);
-                textAlign(CENTER, CENTER);
-                text("💥 SAI CẤU TRÚC / CHƯA XẾP XONG! HẠT ĐÃ NỔ TUNG! HÃY CHỌN LẠI! 💥", width / 2, height / 2);
-                explosionTimer--;
-                if (explosionTimer === 0) showExplosionText = false;
-              }}
-              
               if (showSuccessText && successTimer > 0) {{
                 fill('#0D9488');
                 stroke('#FFFFFF');
@@ -1103,6 +1117,79 @@ with tab2:
                 text("🏆 CHÚC MỪNG! BẠN ĐÃ LẮP RÁP DÀN Ý CHUẨN XÁC! 🏆", width / 2, height / 2);
                 successTimer--;
                 if (successTimer === 0) showSuccessText = false;
+              }}
+              
+              // 10. Vẽ Bảng thông báo lỗi (Popup Card) và giải thích
+              if (showErrorPopup) {{
+                // Phủ màn xám mờ
+                fill('rgba(15, 23, 42, 0.65)');
+                noStroke();
+                rect(0, 0, width, height);
+                
+                // Thẻ thông tin Card ở giữa màn hình
+                let cardW = min(width * 0.9, 650);
+                let cardH = min(height * 0.9, 470);
+                let cardX = (width - cardW) / 2;
+                let cardY = (height - cardH) / 2;
+                
+                fill('#FFFFFF');
+                stroke('#EF4444');
+                strokeWeight(4);
+                rect(cardX, cardY, cardW, cardH, 12);
+                
+                // Tiêu đề Card
+                fill('#DC2626');
+                noStroke();
+                textSize(17 * scaleFactor);
+                textStyle(BOLD);
+                textAlign(CENTER, TOP);
+                text("💥 KẾT QUẢ THÍ NGHIỆM CHƯA CHÍNH XÁC! 💥", width / 2, cardY + 20);
+                
+                // Lời giải thích chung
+                fill('#475569');
+                textSize(12 * scaleFactor);
+                textStyle(NORMAL);
+                text("Hãy đọc kỹ gợi ý phía dưới để điều chỉnh vị trí các hạt:", width / 2, cardY + 45);
+                
+                // Vẽ danh sách lỗi
+                textAlign(LEFT, TOP);
+                textSize(11 * scaleFactor);
+                let startY = cardY + 75;
+                let maxVisible = Math.floor((cardH - 140) / 24); // số dòng lỗi hiển thị được
+                
+                for (let i = 0; i < errorList.length; i++) {{
+                  if (i >= maxVisible) {{
+                    fill('#94A3B8');
+                    text(`... và còn ${errorList.length - maxVisible} lỗi khác chưa khắc phục.`, cardX + 30, startY + i * 24);
+                    break;
+                  }}
+                  
+                  let errText = errorList[i];
+                  // Vẽ dấu chấm đầu dòng màu đỏ
+                  fill('#EF4444');
+                  ellipse(cardX + 22, startY + i * 24 + 6, 6);
+                  
+                  // Vẽ nội dung lỗi
+                  fill('#1E293B');
+                  text(errText, cardX + 35, startY + i * 24);
+                }}
+                
+                // Vẽ nút "Làm lại theo hướng dẫn"
+                let popBtnW = 230 * scaleFactor;
+                let popBtnH = 38 * scaleFactor;
+                let popBtnX = (width - popBtnW) / 2;
+                let popBtnY = cardY + cardH - popBtnH - 20;
+                
+                let isPopHover = (mouseX > popBtnX && mouseX < popBtnX + popBtnW && mouseY > popBtnY && mouseY < popBtnY + popBtnH);
+                fill(isPopHover ? '#B91C1C' : '#DC2626');
+                noStroke();
+                rect(popBtnX, popBtnY, popBtnW, popBtnH, 19 * scaleFactor);
+                
+                fill(255);
+                textAlign(CENTER, CENTER);
+                textSize(11.5 * scaleFactor);
+                textStyle(BOLD);
+                text("LÀM LẠI THEO HƯỚNG DẪN", popBtnX + popBtnW/2, popBtnY + popBtnH/2);
               }}
             }}
             
@@ -1139,22 +1226,107 @@ with tab2:
               }}
             }}
             
-            // Logic kiểm định hoàn thành bài học
-            function checkCompletion() {{
-              let allCorrectlySnapped = true;
+            // Hàm tổng hợp lỗi sai và giải thích chi tiết
+            function evaluateMistakes() {{
+              let list = [];
               
-              // Duyệt kiểm tra xem tất cả các hạt cần snap đã khớp đúng vị trí slot của nó chưa
-              for (let i = 0; i < particles.length; i++) {{
-                let p = particles[i];
-                if (p.tx !== null && !p.isStatic) {{
-                  if (!p.isSnapped || !p.isCorrectlySnapped) {{
-                    allCorrectlySnapped = false;
-                    break;
+              // 1. Kiểm tra luận điểm cấp 1
+              for (let slot of slots) {{
+                let p = particles.find(other => other.isSnapped && other.currentSlotId === slot.id);
+                let correctL1 = particles.find(other => other.id === slot.pId);
+                let label = correctL1 ? correctL1.ten : "Không rõ";
+                
+                if (!p) {{
+                  list.push(`Thiếu luận điểm cấp 1: Bạn chưa xếp hạt nào vào vị trí của "${label}".`);
+                }} else if (p.id !== slot.pId) {{
+                  list.push(`Sai luận điểm cấp 1: Hạt "${p.ten}" đang xếp ở vị trí của "${label}".`);
+                }}
+              }}
+              
+              // 2. Kiểm tra luận điểm cấp 2 (chi tiết) và hạt hỏa mù
+              for (let p of particles) {{
+                if (p.nhomType === 'chi_tiet') {{
+                  if (!p.isSnapped || !p.parentSlotId) {{
+                    list.push(`Thiếu liên kết: Ý "${p.ten}" chưa được kéo thả vào luận điểm nào.`);
+                  }} else if (p.parentSlotId !== 'outline_' + p.correctParentId) {{
+                    let currentParentSlot = slots.find(s => s.id === p.parentSlotId);
+                    let currentParentP = particles.find(other => other.id === currentParentSlot.pId);
+                    let correctParentP = particles.find(other => other.id === p.correctParentId);
+                    
+                    let currentLabel = currentParentP ? currentParentP.ten : "Không rõ";
+                    let correctLabel = correctParentP ? correctParentP.ten : "Không rõ";
+                    
+                    list.push(`Sai liên kết: Ý "${p.ten}" đang xếp vào "${currentLabel}" (đúng ra phải thuộc "${correctLabel}").`);
+                  }}
+                }} else if (p.nhomType === 'hoa_mu') {{
+                  if (p.isSnapped && p.parentSlotId) {{
+                    let currentParentSlot = slots.find(s => s.id === p.parentSlotId);
+                    let currentParentP = particles.find(other => other.id === currentParentSlot.pId);
+                    let currentLabel = currentParentP ? currentParentP.ten : "Không rõ";
+                    list.push(`Thông tin nhiễu: Ý "${p.ten}" là hạt hỏa mù (sai lệch), không được xếp vào "${currentLabel}".`);
                   }}
                 }}
               }}
               
-              if (allCorrectlySnapped) {{
+              return list;
+            }}
+            
+            // Xử lý nổ tung và hoàn trả các hạt sai/hạt hỏa mù về bên phải khi bấm Làm lại
+            function triggerResetOnError() {{
+              showErrorPopup = false;
+              
+              // Kích hoạt rung lắc camera & chớp đỏ
+              flashFrames = 15;
+              shakeFrames = 25;
+              
+              playExplosionSound(); // Tiếng nổ tung!
+              
+              for (let i = 0; i < particles.length; i++) {{
+                let p = particles[i];
+                if (p.isStatic) continue;
+                
+                let shouldBlow = false;
+                
+                if (p.nhomType !== 'chi_tiet' && p.nhomType !== 'hoa_mu') {{
+                  // Hạt luận điểm cấp 1
+                  if (!p.isSnapped || p.currentSlotId !== 'outline_' + p.id) {{
+                    shouldBlow = true;
+                    p.isSnapped = false;
+                    p.currentSlotId = null;
+                    p.isCorrectlySnapped = false;
+                  }}
+                }} else if (p.nhomType === 'chi_tiet') {{
+                  // Hạt chi tiết cấp 2
+                  if (!p.isSnapped || p.parentSlotId !== 'outline_' + p.correctParentId) {{
+                    shouldBlow = true;
+                    p.isSnapped = false;
+                    p.parentSlotId = null;
+                    p.isCorrectlySnapped = false;
+                  }}
+                }} else if (p.nhomType === 'hoa_mu') {{
+                  // Hạt hỏa mù
+                  shouldBlow = true; // Luôn nổ văng nếu bị xếp hoặc chưa xếp đều bị đẩy nhẹ
+                  p.isSnapped = false;
+                  p.parentSlotId = null;
+                  p.isCorrectlySnapped = false;
+                }}
+                
+                if (shouldBlow) {{
+                  let angle = random(-PI/4, PI/4);
+                  let speed = random(14, 24);
+                  p.vx = cos(angle) * speed;
+                  p.vy = sin(angle) * speed;
+                }}
+              }}
+            }}
+            
+            // Logic kiểm định hoàn thành bài học
+            function checkCompletion() {{
+              if (showErrorPopup) return; // Không cho phép check lặp lại khi popup đang hiển thị
+              
+              let mistakes = evaluateMistakes();
+              
+              if (mistakes.length === 0) {{
                 showSuccessText = true;
                 successTimer = 250;
                 flowActive = true;
@@ -1165,34 +1337,13 @@ with tab2:
                 setupFireworks(); // Bắn pháo hoa chào mừng!
                 playSuccessSound(); // Nhạc chiến thắng!
               }} else {{
-                // Kích hoạt hiệu ứng bùng nổ camera
-                flashFrames = 15;
-                shakeFrames = 25;
-                showExplosionText = true;
-                explosionTimer = 120;
-                showSuccessText = false;
-                flowActive = false;
+                // Thay vì nổ văng ngay lập tức, ta hiển thị popup chỉ lỗi
+                showErrorPopup = true;
+                errorList = mistakes;
                 
-                playExplosionSound(); // Tiếng nổ tung!
-                
-                // Thổi bay các hạt chưa snap HOẶC hạt snap SAI vị trí (và các hạt hỏa mù) ngược về góc bên phải
-                for (let i = 0; i < particles.length; i++) {{
-                  let p = particles[i];
-                  if (!p.isStatic) {{
-                    if (!p.isSnapped || !p.isCorrectlySnapped) {{
-                      // Gỡ trạng thái snap
-                      p.isSnapped = false;
-                      p.currentSlotId = null;
-                      p.isCorrectlySnapped = false;
-                      
-                      // Thổi bay bằng lực nổ ngẫu nhiên về phía phải
-                      let angle = random(-PI/4, PI/4);
-                      let speed = random(14, 24);
-                      p.vx = cos(angle) * speed;
-                      p.vy = sin(angle) * speed;
-                    }}
-                  }}
-                }}
+                // Rung nhẹ camera và phát âm thanh cảnh báo lỗi
+                shakeFrames = 10;
+                playClickSound();
               }}
             }}
             
@@ -1219,7 +1370,11 @@ with tab2:
                   
                   draggedParticle = p;
                   p.isSnapped = false; // Gỡ ra khỏi slot khi bắt đầu kéo
-                  p.currentSlotId = null;
+                  if (p.nhomType !== 'chi_tiet' && p.nhomType !== 'hoa_mu') {{
+                    p.currentSlotId = null;
+                  }} else {{
+                    p.parentSlotId = null;
+                  }}
                   p.isCorrectlySnapped = false;
                   
                   offsetX = p.x - tX;
@@ -1244,15 +1399,33 @@ with tab2:
             
             function endDrag() {{
               if (draggedParticle) {{
-                // Tìm kiếm ô slot trống gần nhất (chưa bị chiếm dụng bởi hạt khác)
+                let isLevel1 = (draggedParticle.nhomType !== 'chi_tiet' && draggedParticle.nhomType !== 'hoa_mu');
+                
+                // Tìm kiếm ô slot trống gần nhất
                 let closestSlot = null;
                 let minDist = 99999;
                 
                 for (let i = 0; i < slots.length; i++) {{
                   let slot = slots[i];
-                  // Kiểm định xem slot đã bị hạt khác snap vào chưa
-                  let isOccupied = particles.some(other => other.isSnapped && other.currentSlotId === slot.id && other.id !== draggedParticle.id);
-                  if (!isOccupied) {{
+                  
+                  if (isLevel1) {{
+                    // Đối với hạt cấp 1, slot phải chưa bị hạt cấp 1 khác chiếm đóng
+                    let isOccupied = particles.some(other => 
+                      other.isSnapped && 
+                      other.currentSlotId === slot.id && 
+                      other.id !== draggedParticle.id &&
+                      other.nhomType !== 'chi_tiet' &&
+                      other.nhomType !== 'hoa_mu'
+                    );
+                    if (!isOccupied) {{
+                      let d = dist(draggedParticle.x, draggedParticle.y, slot.x, slot.y);
+                      if (d < minDist) {{
+                        minDist = d;
+                        closestSlot = slot;
+                      }}
+                    }}
+                  }} else {{
+                    // Đối với luận điểm cấp 2, cho phép dính nhiều hạt vào cùng 1 ô luận điểm cấp 1
                     let d = dist(draggedParticle.x, draggedParticle.y, slot.x, slot.y);
                     if (d < minDist) {{
                       minDist = d;
@@ -1261,26 +1434,34 @@ with tab2:
                   }}
                 }}
                 
-                // Chấp nhận bắt dính cả nội dung sai nếu khoảng cách gần (< 60 * scaleFactor)
-                if (closestSlot && minDist < 60 * scaleFactor) {{
-                  draggedParticle.x = closestSlot.x;
-                  draggedParticle.y = closestSlot.y;
-                  draggedParticle.isSnapped = true;
-                  draggedParticle.currentSlotId = closestSlot.id;
-                  draggedParticle.vx = 0;
-                  draggedParticle.vy = 0;
-                  
-                  // Chỉ coi là dính ĐÚNG khi hạt trùng với pId đích của slot đó
-                  if (closestSlot.pId === draggedParticle.id) {{
-                    draggedParticle.isCorrectlySnapped = true;
+                // Khoảng cách snap: cấp 1 là 60px, cấp 2 (thả trực tiếp lên hạt cấp 1) dùng 80px
+                let snapThreshold = isLevel1 ? (60 * scaleFactor) : (80 * scaleFactor);
+                
+                if (closestSlot && minDist < snapThreshold) {{
+                  if (isLevel1) {{
+                    draggedParticle.x = closestSlot.x;
+                    draggedParticle.y = closestSlot.y;
+                    draggedParticle.isSnapped = true;
+                    draggedParticle.currentSlotId = closestSlot.id;
+                    draggedParticle.vx = 0;
+                    draggedParticle.vy = 0;
+                    draggedParticle.isCorrectlySnapped = (closestSlot.pId === draggedParticle.id);
                   }} else {{
-                    draggedParticle.isCorrectlySnapped = false;
+                    // Hạt cấp 2 dính vào slot của hạt cấp 1
+                    draggedParticle.isSnapped = true;
+                    draggedParticle.parentSlotId = closestSlot.id;
+                    draggedParticle.vx = 0;
+                    draggedParticle.vy = 0;
+                    draggedParticle.isCorrectlySnapped = (closestSlot.id === 'outline_' + draggedParticle.correctParentId);
                   }}
-                  
                   playSnapSound();
                 }} else {{
                   draggedParticle.isSnapped = false;
-                  draggedParticle.currentSlotId = null;
+                  if (isLevel1) {{
+                    draggedParticle.currentSlotId = null;
+                  }} else {{
+                    draggedParticle.parentSlotId = null;
+                  }}
                   draggedParticle.isCorrectlySnapped = false;
                 }}
                 draggedParticle = null;
@@ -1289,15 +1470,35 @@ with tab2:
             
             // Chuột (PC)
             function mousePressed() {{
+              if (showErrorPopup) {{
+                // Kiểm tra click vào nút "LÀM LẠI THEO HƯỚNG DẪN"
+                let cardW = min(width * 0.9, 650);
+                let cardH = min(height * 0.9, 470);
+                let cardX = (width - cardW) / 2;
+                let cardY = (height - cardH) / 2;
+                
+                let popBtnW = 230 * scaleFactor;
+                let popBtnH = 38 * scaleFactor;
+                let popBtnX = (width - popBtnW) / 2;
+                let popBtnY = cardY + cardH - popBtnH - 20;
+                
+                if (mouseX > popBtnX && mouseX < popBtnX + popBtnW && mouseY > popBtnY && mouseY < popBtnY + popBtnH) {{
+                  triggerResetOnError();
+                }}
+                return;
+              }}
+              
               if (checkButtonClick(mouseX, mouseY)) return;
               startDrag(mouseX, mouseY);
             }}
             
             function mouseDragged() {{
+              if (showErrorPopup) return;
               moveDrag(mouseX, mouseY);
             }}
             
             function mouseReleased() {{
+              if (showErrorPopup) return;
               endDrag();
             }}
             
@@ -1309,11 +1510,30 @@ with tab2:
                 tX = touches[0].x;
                 tY = touches[0].y;
               }}
+              
+              if (showErrorPopup) {{
+                let cardW = min(width * 0.9, 650);
+                let cardH = min(height * 0.9, 470);
+                let cardX = (width - cardW) / 2;
+                let cardY = (height - cardH) / 2;
+                
+                let popBtnW = 230 * scaleFactor;
+                let popBtnH = 38 * scaleFactor;
+                let popBtnX = (width - popBtnW) / 2;
+                let popBtnY = cardY + cardH - popBtnH - 20;
+                
+                if (tX > popBtnX && tX < popBtnX + popBtnW && tY > popBtnY && tY < popBtnY + popBtnH) {{
+                  triggerResetOnError();
+                }}
+                return;
+              }}
+              
               if (checkButtonClick(tX, tY)) return;
               startDrag(tX, tY);
             }}
             
             function touchMoved() {{
+              if (showErrorPopup) return;
               let tX = mouseX;
               let tY = mouseY;
               if (touches.length > 0) {{
@@ -1329,6 +1549,7 @@ with tab2:
             }}
             
             function touchEnded() {{
+              if (showErrorPopup) return;
               endDrag();
             }}
             
@@ -1348,10 +1569,18 @@ with tab2:
               for (let i = 0; i < particles.length; i++) {{
                 let p = particles[i];
                 if (p.isSnapped) {{
-                  let slot = slots.find(s => s.id === p.currentSlotId);
-                  if (slot) {{
-                    p.x = slot.x;
-                    p.y = slot.y;
+                  if (p.currentSlotId) {{
+                    let slot = slots.find(s => s.id === p.currentSlotId);
+                    if (slot) {{
+                      p.x = slot.x;
+                      p.y = slot.y;
+                    }}
+                  }} else if (p.parentSlotId) {{
+                    let slot = slots.find(s => s.id === p.parentSlotId);
+                    if (slot) {{
+                      p.x = col3;
+                      p.y = slot.y;
+                    }}
                   }}
                 }} else if (p.isStatic) {{
                   p.x = p.tx;
