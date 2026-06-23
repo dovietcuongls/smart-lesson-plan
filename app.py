@@ -261,7 +261,7 @@ Trả về kết quả 100% dưới dạng Markdown Table để tôi hiển th�
                 st.error(f"❌ Xảy ra lỗi trong quá trình xử lý: {str(e)}")
 
 # ------------------------------------------
-# TAB 2: PHÒNG THÍ NGHIỆM VĂN HỌC (Ghép nối sơ đồ trò chơi)
+# TAB 2: PHÒNG THÍ NGHIỆM VĂN HỌC (Trò chơi kéo thả âm thanh tương tác)
 # ------------------------------------------
 with tab2:
     st.title("🧪 Phòng Thí Nghiệm Văn Học")
@@ -326,7 +326,7 @@ with tab2:
                             "   - Bài học liên kết với các hạt: Nhận thức đúng đắn, Hành động cụ thể áp dụng.\\n"
                             "   - Kết bài liên kết với các hạt: Khẳng định giá trị, Liên hệ bản thân.\\n\\n"
                             "4. Các hạt tung hỏa mù (Decoys - nhóm 'hoa_mu', size: 75-80, luc: 0.0, mau: '#64748B'):\\n"
-                            "   Hãy sinh thêm từ 2 đến 3 hạt mang tư tưởng tiêu cực, ngụy biện, lệch lạc hoặc hành vi trái ngược hoàn toàn với tinh thần chủ đề (Ví dụ: với chủ đề 'Lòng dũng cảm' thì sinh các hạt hỏa mù như 'Hèn nhát trốn tránh', 'Liều lĩnh mù quáng', 'Thờ ơ ích kỷ').\\n"
+                            "   Hãy sinh thêm từ 2 đến 3 hạt mang tư tưởng tiêu cực, ngụy biến, lệch lạc hoặc hành vi trái ngược hoàn toàn với tinh thần chủ đề (Ví dụ: với chủ đề 'Lòng dũng cảm' thì sinh các hạt hỏa mù như 'Hèn nhát trốn tránh', 'Liều lĩnh mù quáng', 'Thờ ơ ích kỷ').\\n"
                             "   LƯU Ý CỰC KỲ QUAN TRỌNG: Không khai báo bất kỳ liên kết (links) nào cho các hạt hỏa mù này trong mảng 'links'. Chúng đứng độc lập.\\n\\n"
                             "VẬT LÝ HẠT (Thuộc tính 'luc'):\\n"
                             "- Các hạt mang tính chất thực tiễn, cụ thể, dẫn chứng phải có lực dương (luc: từ 1.5 đến 3.5) để chúng trĩu nặng xuống dưới.\\n"
@@ -435,6 +435,148 @@ with tab2:
             let seq = [];
             let childNodesMap = {{}};
             
+            // Web Audio API Click/Snap Sound Synthesizer
+            let audioCtx = null;
+            
+            function playClickSound() {{
+              try {{
+                if (!audioCtx) {{
+                  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }}
+                if (audioCtx.state === 'suspended') {{
+                  audioCtx.resume();
+                }}
+                let osc = audioCtx.createOscillator();
+                let gainNode = audioCtx.createGain();
+                osc.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(1000, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(150, audioCtx.currentTime + 0.04);
+                
+                gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.04);
+                
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.05);
+              }} catch (e) {{
+                console.log("Audio Context Error: ", e);
+              }}
+            }}
+            
+            function playSnapSound() {{
+              try {{
+                if (!audioCtx) {{
+                  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }}
+                if (audioCtx.state === 'suspended') {{
+                  audioCtx.resume();
+                }}
+                let osc = audioCtx.createOscillator();
+                let gainNode = audioCtx.createGain();
+                osc.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(550, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(260, audioCtx.currentTime + 0.08);
+                
+                gainNode.gain.setValueAtTime(0.35, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.09);
+                
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.1);
+              }} catch (e) {{
+                console.log(e);
+              }}
+            }}
+            
+            function playExplosionSound() {{
+              try {{
+                if (!audioCtx) {{
+                  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }}
+                if (audioCtx.state === 'suspended') {{
+                  audioCtx.resume();
+                }}
+                
+                let bufferSize = audioCtx.sampleRate * 0.45;
+                let buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+                let data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {{
+                  data[i] = Math.random() * 2 - 1;
+                }}
+                
+                let noise = audioCtx.createBufferSource();
+                noise.buffer = buffer;
+                
+                let filter = audioCtx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(700, audioCtx.currentTime);
+                filter.frequency.exponentialRampToValueAtTime(60, audioCtx.currentTime + 0.35);
+                
+                let gain = audioCtx.createGain();
+                gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+                
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(audioCtx.destination);
+                
+                noise.start();
+              }} catch (e) {{
+                console.log(e);
+              }}
+            }}
+            
+            function playSuccessSound() {{
+              try {{
+                if (!audioCtx) {{
+                  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }}
+                if (audioCtx.state === 'suspended') {{
+                  audioCtx.resume();
+                }}
+                
+                // Arpeggio Major Chord C5 - E5 - G5 - C6
+                let chord = [523.25, 659.25, 783.99, 1046.50];
+                chord.forEach((freq, idx) => {{
+                  let osc = audioCtx.createOscillator();
+                  let gain = audioCtx.createGain();
+                  osc.connect(gain);
+                  gain.connect(audioCtx.destination);
+                  
+                  osc.type = 'sine';
+                  osc.frequency.setValueAtTime(freq, audioCtx.currentTime + idx * 0.08);
+                  
+                  gain.gain.setValueAtTime(0.0, audioCtx.currentTime + idx * 0.08);
+                  gain.gain.linearRampToValueAtTime(0.25, audioCtx.currentTime + idx * 0.08 + 0.02);
+                  gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + idx * 0.08 + 0.22);
+                  
+                  osc.start(audioCtx.currentTime + idx * 0.08);
+                  osc.stop(audioCtx.currentTime + idx * 0.08 + 0.28);
+                }});
+              }} catch (e) {{
+                console.log(e);
+              }}
+            }}
+            
+            // Hàm chuẩn hóa chuỗi phân loại nhóm của Gemini thành chuẩn của game
+            function getGroupType(nhom) {{
+              if (!nhom) return 'chi_tiet';
+              let n = nhom.toLowerCase().normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").replace(/\\s+/g, "_");
+              if (n.includes('luan_de') || n.includes('chu_de') || n.includes('trung_tam')) return 'luan_de';
+              if (n.includes('mo_bai') || n.includes('nhap_de') || n.includes('dat_van_de') || n.includes('mo_dau')) return 'mo_bai';
+              if (n.includes('giai_thich')) return 'giai_thich';
+              if (n.includes('phan_tich') || n.includes('chung_minh')) return 'phan_tich_chung_minh';
+              if (n.includes('ban_luan') || n.includes('mo_rong') || n.includes('danh_gia') || n.includes('ban_bac')) return 'ban_luan_mo_rong';
+              if (n.includes('bai_hoc') || n.includes('hanh_dong') || n.includes('nhan_thuc')) return 'bai_hoc';
+              if (n.includes('ket_bai') || n.includes('ket_luan') || n.includes('thong_diep') || n.includes('vi_lien_he')) return 'ket_bai';
+              if (n.includes('hoa_mu') || n.includes('nguy_bien') || n.includes('nham') || n.includes('decoy')) return 'hoa_mu';
+              return 'chi_tiet';
+            }}
+            
             function calculateLayout() {{
               // Tự động thu nhỏ hạt trên màn hình nhỏ để tránh tràn màn hình di động
               scaleFactor = windowWidth < 600 ? 0.68 : 1.0;
@@ -466,15 +608,17 @@ with tab2:
               let nodes = particleData.nodes || [];
               links = particleData.links || [];
               
-              // 1. Khởi tạo hạt
+              // 1. Khởi tạo hạt với chuỗi chuẩn hóa nhóm hạt
               for (let i = 0; i < nodes.length; i++) {{
                 let data = nodes[i];
                 let pSize = parseInt(data.size) || 80;
+                let gType = getGroupType(data.nhom);
                 
                 particles.push({{
-                  id: data.id,
+                  id: Number(data.id),
                   ten: data.ten,
                   nhom: data.nhom,
+                  nhomType: gType,
                   luc: parseFloat(data.luc) || 0,
                   mau: data.mau || '#3B82F6',
                   origSize: pSize,
@@ -490,11 +634,11 @@ with tab2:
                 }});
               }}
               
-              // 2. Định nghĩa vị trí đích (Targets) và phân loại quan hệ cha-con
+              // 2. Định nghĩa vị trí đích (Targets) dựa trên loại hạt đã chuẩn hóa
               assignTargets();
               
               // 3. Phân bổ vị trí khởi tạo: Luận đề nằm tĩnh bên trái, còn lại lộn xộn bên phải
-              let rootNode = nodes.find(n => n.nhom === 'luan_de');
+              let rootNode = particles.find(p => p.nhomType === 'luan_de');
               for (let p of particles) {{
                 if (rootNode && p.id === rootNode.id) {{
                   p.x = p.tx;
@@ -508,29 +652,32 @@ with tab2:
               
               // 4. Thiết lập chuỗi các nút luận điểm phục vụ hoạt động chạy luồng sáng
               if (rootNode) {{
-                let rootP = particles.find(p => p.id === rootNode.id);
-                if (rootP) seq.push(rootP);
+                seq.push(rootNode);
               }}
               
-              let outlineNodes = particles.filter(p => outlineGroups.includes(p.nhom));
-              outlineNodes.sort((a, b) => outlineGroups.indexOf(a.nhom) - outlineGroups.indexOf(b.nhom));
+              let outlineNodes = particles.filter(p => outlineGroups.includes(p.nhomType));
+              outlineNodes.sort((a, b) => outlineGroups.indexOf(a.nhomType) - outlineGroups.indexOf(b.nhomType));
               seq = seq.concat(outlineNodes);
             }}
             
             function assignTargets() {{
-              let rootNode = particleData.nodes.find(n => n.nhom === 'luan_de');
-              let outlineNodes = particleData.nodes.filter(n => outlineGroups.includes(n.nhom));
-              outlineNodes.sort((a, b) => outlineGroups.indexOf(a.nhom) - outlineGroups.indexOf(b.nhom));
+              let rootNode = particles.find(p => p.nhomType === 'luan_de');
+              let outlineNodes = particles.filter(p => outlineGroups.includes(p.nhomType));
+              outlineNodes.sort((a, b) => outlineGroups.indexOf(a.nhomType) - outlineGroups.indexOf(b.nhomType));
               
               childNodesMap = {{}};
               for (let outline of outlineNodes) {{
                 let children = [];
                 for (let link of links) {{
-                  if (link.source === outline.id) {{
-                    let targetNode = particleData.nodes.find(n => n.id === link.target && n.nhom === 'chi_tiet');
+                  let sId = Number(link.source);
+                  let tId = Number(link.target);
+                  let oId = Number(outline.id);
+                  
+                  if (sId === oId) {{
+                    let targetNode = particles.find(p => p.id === tId && p.nhomType === 'chi_tiet');
                     if (targetNode) children.push(targetNode);
-                  }} else if (link.target === outline.id) {{
-                    let sourceNode = particleData.nodes.find(n => n.id === link.source && n.nhom === 'chi_tiet');
+                  }} else if (tId === oId) {{
+                    let sourceNode = particles.find(p => p.id === sId && p.nhomType === 'chi_tiet');
                     if (sourceNode) children.push(sourceNode);
                   }}
                 }}
@@ -539,24 +686,18 @@ with tab2:
               
               // Khớp vị trí Luận đề
               if (rootNode) {{
-                let p = particles.find(p => p.id === rootNode.id);
-                if (p) {{
-                  p.tx = col1;
-                  p.ty = 275;
-                  p.isSnapped = true;
-                  p.isStatic = true;
-                }}
+                rootNode.tx = col1;
+                rootNode.ty = 275;
+                rootNode.isSnapped = true;
+                rootNode.isStatic = true;
               }}
               
               // Khớp vị trí 6 luận điểm lớn
               let outlineYSpacing = [50, 140, 230, 320, 410, 500];
               for (let i = 0; i < outlineNodes.length; i++) {{
                 let node = outlineNodes[i];
-                let p = particles.find(p => p.id === node.id);
-                if (p) {{
-                  p.tx = col2;
-                  p.ty = outlineYSpacing[i];
-                }}
+                node.tx = col2;
+                node.ty = outlineYSpacing[i];
               }}
               
               // Khớp vị trí các hạt chi tiết nhánh của từng luận điểm
@@ -566,36 +707,22 @@ with tab2:
                 let children = childNodesMap[outline.id] || [];
                 
                 if (children.length === 1) {{
-                  let p = particles.find(p => p.id === children[0].id);
-                  if (p) {{ p.tx = col3; p.ty = oy; }}
+                  let p = children[0];
+                  p.tx = col3; p.ty = oy;
                 }} else if (children.length === 2) {{
-                  let p1 = particles.find(p => p.id === children[0].id);
-                  let p2 = particles.find(p => p.id === children[1].id);
+                  let p1 = children[0];
+                  let p2 = children[1];
                   if (p1) {{ p1.tx = col3; p1.ty = oy - 25 * scaleFactor; }}
                   if (p2) {{ p2.tx = col3; p2.ty = oy + 25 * scaleFactor; }}
                 }} else if (children.length >= 3) {{
-                  let p1 = particles.find(p => p.id === children[0].id);
-                  let p2 = particles.find(p => p.id === children[1].id);
-                  let p3 = particles.find(p => p.id === children[2].id);
+                  let p1 = children[0];
+                  let p2 = children[1];
+                  let p3 = children[2];
                   if (p1) {{ p1.tx = col3; p1.ty = oy - 35 * scaleFactor; }}
                   if (p2) {{ p2.tx = col3; p2.ty = oy; }}
                   if (p3) {{ p3.tx = col3; p3.ty = oy + 35 * scaleFactor; }}
                 }}
               }}
-            }}
-            
-            function getChildren(parentId) {{
-              let list = [];
-              for (let link of links) {{
-                if (link.source === parentId) {{
-                  let p = particles.find(p => p.id === link.target && p.nhom === 'chi_tiet');
-                  if (p) list.push(p);
-                }} else if (link.target === parentId) {{
-                  let p = particles.find(p => p.id === link.source && p.nhom === 'chi_tiet');
-                  if (p) list.push(p);
-                }}
-              }}
-              return list;
             }}
             
             function draw() {{
@@ -627,12 +754,12 @@ with tab2:
                     textAlign(CENTER, CENTER);
                     
                     let label = "";
-                    if (p.nhom === 'mo_bai') label = "Mở bài";
-                    else if (p.nhom === 'giai_thich') label = "Giải thích";
-                    else if (p.nhom === 'phan_tich_chung_minh') label = "Phân tích";
-                    else if (p.nhom === 'ban_luan_mo_rong') label = "Bàn luận";
-                    else if (p.nhom === 'bai_hoc') label = "Bài học";
-                    else if (p.nhom === 'ket_bai') label = "Kết bài";
+                    if (p.nhomType === 'mo_bai') label = "Mở bài";
+                    else if (p.nhomType === 'giai_thich') label = "Giải thích";
+                    else if (p.nhomType === 'phan_tich_chung_minh') label = "Chứng minh";
+                    else if (p.nhomType === 'ban_luan_mo_rong') label = "Bàn luận";
+                    else if (p.nhomType === 'bai_hoc') label = "Bài học";
+                    else if (p.nhomType === 'ket_bai') label = "Kết bài";
                     else label = "Chi tiết";
                     
                     text(label, p.tx, p.ty);
@@ -645,8 +772,8 @@ with tab2:
               strokeWeight(1.8);
               for (let i = 0; i < links.length; i++) {{
                 let link = links[i];
-                let p1 = particles.find(p => p.id === link.source);
-                let p2 = particles.find(p => p.id === link.target);
+                let p1 = particles.find(p => p.id === Number(link.source));
+                let p2 = particles.find(p => p.id === Number(link.target));
                 if (p1 && p2) {{
                   if ((p1.isStatic || p1.isSnapped) && (p2.isStatic || p2.isSnapped)) {{
                     line(p1.x, p1.y, p2.x, p2.y);
@@ -707,7 +834,7 @@ with tab2:
                 let p = particles[i];
                 
                 if (p.isSnapped || p.isStatic) {{
-                  // Đứng yên tuyệt đối nếu đã snap đúng logic
+                  // Đứng yên tuyệt đối nếu đã snap đúng vị trí
                   p.x = p.tx;
                   p.y = p.ty;
                   p.vx = 0;
@@ -894,6 +1021,8 @@ with tab2:
                 flowStep = 0;
                 flowProgress = 0.0;
                 showExplosionText = false;
+                
+                playSuccessSound(); // Nhạc chiến thắng!
               }} else {{
                 // Kích hoạt hiệu ứng bùng nổ camera
                 flashFrames = 15;
@@ -902,6 +1031,8 @@ with tab2:
                 explosionTimer = 120;
                 showSuccessText = false;
                 flowActive = false;
+                
+                playExplosionSound(); // Tiếng nổ tung!
                 
                 // Thổi bay các hạt tự do (chưa snap / hạt hỏa mù) ngược về góc bên phải
                 for (let i = 0; i < particles.length; i++) {{
@@ -943,6 +1074,8 @@ with tab2:
                   offsetY = p.y - tY;
                   p.vx = 0;
                   p.vy = 0;
+                  
+                  playClickSound(); // Âm thanh click khi nắm hạt
                   break;
                 }}
               }}
@@ -962,12 +1095,15 @@ with tab2:
                 // Kiểm định xem hạt thả ra có rơi vào gần vị trí đích (Target slot) không
                 if (draggedParticle.tx !== null) {{
                   let d = dist(draggedParticle.x, draggedParticle.y, draggedParticle.tx, draggedParticle.ty);
-                  if (d < 35 * scaleFactor) {{
+                  // Tăng khoảng cách snap lên 60 * scaleFactor để dễ dàng bắt dính hơn
+                  if (d < 60 * scaleFactor) {{
                     draggedParticle.x = draggedParticle.tx;
                     draggedParticle.y = draggedParticle.ty;
                     draggedParticle.isSnapped = true;
                     draggedParticle.vx = 0;
                     draggedParticle.vy = 0;
+                    
+                    playSnapSound(); // Âm thanh snap cạch cạch vui tai
                   }} else {{
                     draggedParticle.isSnapped = false;
                   }}
