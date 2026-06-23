@@ -138,38 +138,37 @@ def markdown_table_to_df(markdown_str):
     return None
 
 # ==========================================
-# SIDEBAR
-# ==========================================
-with st.sidebar:
-    st.header("📂 Tải Văn Bản")
-    uploaded_file = st.file_uploader(
-        "Kéo thả hoặc dán file vào đây", 
-        type=["pdf", "docx", "png", "jpg", "jpeg"]
-    )
-    
-    st.markdown("---")
-    st.markdown("""
-    **✅ Hướng dẫn sử dụng:**
-    1. Tải lên công văn, kế hoạch (File Word, PDF) hoặc ảnh chụp công văn có dấu đỏ.
-    2. Đợi hệ thống AI đọc và xử lý.
-    3. Nhận bảng công việc đã được bóc tách tự động.
-    4. Tải file Excel về máy để lưu minh chứng theo dõi.
-    """)
-
-# ==========================================
 # GIAO DIỆN CHÍNH (TABS)
 # ==========================================
-tab1, tab2 = st.tabs(["Quản lý nội trú", "Phòng thí nghiệm văn học"])
+tab1, tab2 = st.tabs(["Xử lý văn bản", "Phòng thí nghiệm văn học"])
 
 # ------------------------------------------
-# TAB 1: QUẢN LÝ NỘI TRÚ (Xử lý văn bản chỉ đạo)
+# TAB 1: XỬ LÝ VĂN BẢN (Quản lý nội trú trước đây, không dùng sidebar nữa)
 # ------------------------------------------
 with tab1:
-    st.title("🏛️ Trợ lý Xử lý Văn bản Chỉ đạo")
-    st.markdown("**Số hóa quy trình bóc tách công việc từ văn bản nhà nước/nhà trường một cách tự động và chính xác.**")
-    st.divider()
+    col_left, col_right = st.columns([1, 2])
+    
+    with col_left:
+        st.header("📂 Tải Văn Bản")
+        uploaded_file = st.file_uploader(
+            "Kéo thả hoặc dán file vào đây", 
+            type=["pdf", "docx", "png", "jpg", "jpeg"]
+        )
+        st.markdown("---")
+        st.markdown("""
+        **✅ Hướng dẫn sử dụng:**
+        1. Tải lên công văn, kế hoạch (File Word, PDF) hoặc ảnh chụp công văn có dấu đỏ.
+        2. Đợi hệ thống AI đọc và xử lý.
+        3. Nhận bảng công việc đã được bóc tách tự động.
+        4. Tải file Excel về máy để lưu minh chứng theo dõi.
+        """)
+        
+    with col_right:
+        st.title("🏛️ Trợ lý Xử lý Văn bản Chỉ đạo")
+        st.markdown("**Số hóa quy trình bóc tách công việc từ văn bản nhà nước/nhà trường một cách tự động và chính xác.**")
+        st.divider()
 
-    PROMPT_TEXT = """Đóng vai một Hiệu trưởng / Quản lý hành chính trường học. Hãy đọc văn bản chỉ đạo sau và bóc tách thông tin thành một bảng nghiêm ngặt. 
+        PROMPT_TEXT = """Đóng vai một Hiệu trưởng / Quản lý hành chính trường học. Hãy đọc văn bản chỉ đạo sau và bóc tách thông tin thành một bảng nghiêm ngặt. 
 Bảng phải gồm chính xác 4 cột:
 1. Tóm tắt Nội dung chính (Ngắn gọn 2-3 câu).
 2. Đối tượng thực hiện (Ghi đích danh: GV Ngữ văn, Lịch sử, Ban giám hiệu, Bảo vệ...).
@@ -178,90 +177,92 @@ Bảng phải gồm chính xác 4 cột:
 Trả về kết quả 100% dưới dạng Markdown Table để tôi hiển thị lên web.
 """
 
-    if uploaded_file is not None:
-        if not configure_genai():
-            st.error("⚠️ LỖI: Chưa cấu hình GOOGLE_API_KEY ở backend. Vui lòng kiểm tra mã nguồn (app.py) hoặc cấu hình Streamlit Secrets.")
-        else:
-            st.info(f"Đang phân tích tài liệu: **{uploaded_file.name}**...")
-            
-            try:
-                # Lấy danh sách model khả dụng
-                available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-                if not available_models:
-                    raise Exception("API Key của bạn không có quyền truy cập vào bất kỳ mô hình Gemini nào hỗ trợ tạo nội dung.")
-                    
-                # Ưu tiên chọn gemini-1.5-flash hoặc gemini-2.5-flash nếu có, nếu không thì lấy model đầu tiên
-                selected_model = available_models[0]
-                for m_name in available_models:
-                    if "1.5-flash" in m_name or "2.5-flash" in m_name:
-                        selected_model = m_name
-                        break
-                        
-                model = genai.GenerativeModel(selected_model)
+        if uploaded_file is not None:
+            if not configure_genai():
+                st.error("⚠️ LỖI: Chưa cấu hình GOOGLE_API_KEY ở backend. Vui lòng kiểm tra mã nguồn (app.py) hoặc cấu hình Streamlit Secrets.")
+            else:
+                st.info(f"Đang phân tích tài liệu: **{uploaded_file.name}**...")
                 
-                with st.spinner(f"AI ({selected_model}) đang bóc tách dữ liệu... Vui lòng đợi trong giây lát."):
-                    response = None
-                    
-                    file_ext = uploaded_file.name.split('.')[-1].lower()
-                    
-                    # Xử lý ảnh (Gửi thẳng file ảnh qua Vision model)
-                    if file_ext in ['png', 'jpg', 'jpeg']:
-                        image = Image.open(uploaded_file)
-                        st.image(image, caption="Ảnh chụp công văn tải lên", width=300)
-                        response = model.generate_content([PROMPT_TEXT, image])
+                try:
+                    # Lấy danh sách model khả dụng
+                    available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+                    if not available_models:
+                        raise Exception("API Key của bạn không có quyền truy cập vào bất kỳ mô hình Gemini nào hỗ trợ tạo nội dung.")
                         
-                    # Xử lý text từ PDF hoặc DOCX
-                    else:
-                        text_content = ""
-                        if file_ext == "pdf":
-                            text_content = extract_text_from_pdf(uploaded_file)
-                        elif file_ext == "docx":
-                            text_content = extract_text_from_docx(uploaded_file)
+                    # Ưu tiên chọn gemini-1.5-flash hoặc gemini-2.5-flash nếu có, nếu không thì lấy model đầu tiên
+                    selected_model = available_models[0]
+                    for m_name in available_models:
+                        if "1.5-flash" in m_name or "2.5-flash" in m_name:
+                            selected_model = m_name
+                            break
+                            
+                    model = genai.GenerativeModel(selected_model)
+                    
+                    with st.spinner(f"AI ({selected_model}) đang bóc tách dữ liệu... Vui lòng đợi trong giây lát."):
+                        response = None
                         
-                        if not text_content.strip():
-                            st.warning("⚠️ Không tìm thấy chữ trong văn bản. Nếu đây là PDF dạng scan (văn bản chụp hình), vui lòng chuyển sang file ảnh (.png, .jpg) để upload lại.")
+                        file_ext = uploaded_file.name.split('.')[-1].lower()
+                        
+                        # Xử lý ảnh (Gửi thẳng file ảnh qua Vision model)
+                        if file_ext in ['png', 'jpg', 'jpeg']:
+                            image = Image.open(uploaded_file)
+                            st.image(image, caption="Ảnh chụp công văn tải lên", width=300)
+                            response = model.generate_content([PROMPT_TEXT, image])
+                            
+                        # Xử lý text từ PDF hoặc DOCX
                         else:
-                            full_prompt = PROMPT_TEXT + "\\n\\nNội dung văn bản:\\n" + text_content
-                            response = model.generate_content(full_prompt)
-                    
-                    # Render kết quả
-                    if response:
-                        st.success("✅ Đã bóc tách thành công!")
-                        
-                        st.subheader("📊 Bảng Phân công Công việc")
-                        markdown_result = response.text
-                        
-                        # Hiện bảng lên màn hình và cho phép render thẻ HTML <br>
-                        st.markdown(markdown_result, unsafe_allow_html=True)
-                        
-                        # Xử lý xuất Excel
-                        df = markdown_table_to_df(markdown_result)
-                        if df is not None:
-                            # Ghi Dataframe ra bộ nhớ đệm (buffer) để tạo file Excel tải xuống
-                            output = io.BytesIO()
-                            with pd.ExcelWriter(output, engine='openpyxl') as writer:
-                                df.to_excel(writer, index=False, sheet_name='Phan_Cong')
+                            text_content = ""
+                            if file_ext == "pdf":
+                                text_content = extract_text_from_pdf(uploaded_file)
+                            elif file_ext == "docx":
+                                text_content = extract_text_from_docx(uploaded_file)
                             
-                            excel_data = output.getvalue()
+                            if not text_content.strip():
+                                st.warning("⚠️ Không tìm thấy chữ trong văn bản. Nếu đây là PDF dạng scan (văn bản chụp hình), vui lòng chuyển sang file ảnh (.png, .jpg) để upload lại.")
+                            else:
+                                full_prompt = PROMPT_TEXT + "\\n\\nNội dung văn bản:\\n" + text_content
+                                response = model.generate_content(full_prompt)
+                        
+                        # Render kết quả
+                        if response:
+                            st.success("✅ Đã bóc tách thành công!")
                             
-                            st.markdown("---")
-                            col1, col2, col3 = st.columns([1, 2, 1])
-                            with col2:
-                                st.download_button(
-                                    label="📥 Tải xuống Bảng Phân công (Excel)",
-                                    data=excel_data,
-                                    file_name=f"Ban_Phan_Cong_{uploaded_file.name}.xlsx",
-                                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                                    use_container_width=True
-                                )
-                        else:
-                            st.warning("⚠️ AI trả về kết quả nhưng không nằm trong định dạng bảng chuẩn nên không thể tạo file Excel. Xin thử lại với tư duy khác của AI.")
+                            st.subheader("📊 Bảng Phân công Công việc")
+                            markdown_result = response.text
                             
-            except Exception as e:
-                st.error(f"❌ Xảy ra lỗi trong quá trình xử lý: {str(e)}")
+                            # Hiện bảng lên màn hình và cho phép render thẻ HTML <br>
+                            st.markdown(markdown_result, unsafe_allow_html=True)
+                            
+                            # Xử lý xuất Excel
+                            df = markdown_table_to_df(markdown_result)
+                            if df is not None:
+                                # Ghi Dataframe ra bộ nhớ đệm (buffer) để tạo file Excel tải xuống
+                                output = io.BytesIO()
+                                with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                                    df.to_excel(writer, index=False, sheet_name='Phan_Cong')
+                                
+                                excel_data = output.getvalue()
+                                
+                                st.markdown("---")
+                                col1, col2, col3 = st.columns([1, 2, 1])
+                                with col2:
+                                    st.download_button(
+                                        label="📥 Tải xuống Bảng Phân công (Excel)",
+                                        data=excel_data,
+                                        file_name=f"Ban_Phan_Cong_{uploaded_file.name}.xlsx",
+                                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                        use_container_width=True
+                                    )
+                            else:
+                                st.warning("⚠️ AI trả về kết quả nhưng không nằm trong định dạng bảng chuẩn nên không thể tạo file Excel. Xin thử lại với tư duy khác của AI.")
+                                
+                except Exception as e:
+                    st.error(f"❌ Xảy ra lỗi trong quá trình xử lý: {str(e)}")
+        else:
+            st.info("👈 Vui lòng tải tài liệu lên từ bảng bên trái để bắt đầu bóc tách phân công công việc.")
 
 # ------------------------------------------
-# TAB 2: PHÒNG THÍ NGHIỆM VĂN HỌC (Ghép nối sơ đồ trò chơi)
+# TAB 2: PHÒNG THÍ NGHIỆM VĂN HỌC (Trò chơi kéo thả âm thanh tương tác)
 # ------------------------------------------
 with tab2:
     st.title("🧪 Phòng Thí Nghiệm Văn Học")
@@ -369,18 +370,18 @@ with tab2:
         st.subheader("🔮 Sơ đồ hạt vật lý tương tác liên kết")
         st.markdown(
             "🎮 **LUẬT CHƠI & HƯỚNG DẪN:**\\n"
-            "1. **Phía bên trái** là các ô tròn nét đứt (slots) gợi ý các phần của bài văn.\\n"
+            "1. **Phía bên trái** là các ô tròn nét đứt (slots). Không còn nhãn chữ gợi ý mờ để thử thách sự hiểu bài của bạn!\\n"
             "2. **Phía bên phải** là các hạt luận điểm, dẫn chứng và **hạt tung hỏa mù (decoy)** nằm lộn xộn.\\n"
-            "3. Sử dụng ngón tay chạm vuốt (Smartphone) hoặc chuột kéo thả (PC) đưa các hạt từ bên phải lắp vào đúng vị trí bên trái. **Nếu xếp đúng hạt, đường kết nối sẽ tự động phát sáng hiện ra**.\\n"
-            "4. Các hạt hỏa mù (nội dung lệch lạc/sai) không có ô trống nào bên trái, hãy để chúng bay tự do bên phải.\\n"
-            "5. Sau khi ghép xong, hãy nhấn nút **THỰC HIỆN THÍ NGHIỆM** ở góc dưới bên phải để kiểm tra. Nếu xếp sai/thiếu, **hệ thống sẽ rung chuyển và nổ văng các hạt chưa snap về bên phải**! Nếu xếp đúng, **luồng sáng tư duy sẽ chạy mượt mà từ Mở bài đến Kết bài**!"
+            "3. Sử dụng ngón tay chạm vuốt (Smartphone) hoặc chuột kéo thả (PC) đưa các hạt từ bên phải lắp vào ô trống bên trái. **Hạt có thể dính vào bất kỳ ô nào, tuy nhiên chỉ khi xếp đúng ô, đường liên kết phát sáng mới hiện ra**.\\n"
+            "4. Các hạt hỏa mù (nội dung lệch lạc/sai) không có ô trống nào đúng để kết nối, hãy để chúng bay tự do bên phải.\\n"
+            "5. Sau khi ghép xong, hãy nhấn nút **THỰC HIỆN THÍ NGHIỆM** ở góc dưới bên phải để kiểm tra. Nếu xếp sai/thiếu, **các hạt xếp sai sẽ nổ tung và văng về bên phải**! Nếu xếp đúng, **luồng sáng tư duy và pháo hoa rực rỡ sẽ xuất hiện chúc mừng**!"
         )
         
         # Chuyển đổi dữ liệu JSON sang chuỗi an toàn
         import json
         literature_data_str = json.dumps(st.session_state.literature_json, ensure_ascii=False)
         
-        # Mã HTML nhúng p5.js với trò chơi ghép nối và hiệu ứng nổ tung/luồng sáng
+        # Mã HTML nhúng p5.js với trò chơi ghép nối và hiệu ứng nổ tung/pháo hoa hạt vật lý
         p5_canvas_html = f"""
         <!DOCTYPE html>
         <html lang="vi">
@@ -412,6 +413,7 @@ with tab2:
             const particleData = {literature_data_str};
             let particles = [];
             let links = [];
+            let slots = []; // Chứa tọa độ các ô đích bên trái
             let draggedParticle = null;
             let offsetX = 0;
             let offsetY = 0;
@@ -434,6 +436,9 @@ with tab2:
             let flowProgress = 0.0;
             let seq = [];
             let childNodesMap = {{}};
+            
+            // Pháo hoa chào mừng chiến thắng
+            let fireworks = [];
             
             // Web Audio API Click/Snap Sound Synthesizer
             let audioCtx = null;
@@ -578,7 +583,6 @@ with tab2:
             }}
             
             function calculateLayout() {{
-              // Tự động thu nhỏ hạt trên màn hình nhỏ để tránh tràn màn hình di động
               scaleFactor = windowWidth < 600 ? 0.68 : 1.0;
               
               if (windowWidth > 800) {{
@@ -586,11 +590,6 @@ with tab2:
                 col2 = windowWidth * 0.22;
                 col3 = windowWidth * 0.38;
                 startX = windowWidth * 0.52;
-              }} else if (windowWidth > 500) {{
-                col1 = 60;
-                col2 = 160;
-                col3 = 260;
-                startX = 330;
               }} else {{
                 col1 = 35;
                 col2 = 105;
@@ -629,12 +628,14 @@ with tab2:
                   vy: 0,
                   isSnapped: false,
                   isStatic: false,
+                  currentSlotId: null,
+                  isCorrectlySnapped: false,
                   tx: null,
                   ty: null
                 }});
               }}
               
-              // 2. Định nghĩa vị trí đích (Targets) dựa trên cấu trúc hình học liên kết (Topology)
+              // 2. Định nghĩa vị trí đích (Targets) và Slots
               assignTargets();
               
               // 3. Phân bổ vị trí khởi tạo: Luận đề nằm tĩnh bên trái, còn lại lộn xộn bên phải
@@ -644,7 +645,6 @@ with tab2:
                   p.x = p.tx;
                   p.y = p.ty;
                 }} else {{
-                  // Đặt lộn xộn bên phải
                   p.x = random(startX + p.radius, windowWidth - p.radius);
                   p.y = random(40, 500);
                 }}
@@ -661,7 +661,8 @@ with tab2:
             }}
             
             function assignTargets() {{
-              // Thuật toán dựa trên Topology liên kết để giải quyết triệt để lỗi Gemini đặt tên nhóm lộn xộn
+              slots = []; // Clear trước khi gán
+              
               let rootNode = particles.find(p => p.nhomType === 'luan_de') || particles[0];
               if (!rootNode) return;
               
@@ -671,7 +672,6 @@ with tab2:
               rootNode.isStatic = true;
               rootNode.nhomType = 'luan_de';
               
-              // Tìm các hạt kết nối trực tiếp với hạt gốc (Luận đề) -> Đây chính là 6 luận điểm lớn
               let outlineIds = [];
               for (let i = 0; i < links.length; i++) {{
                 let link = links[i];
@@ -681,9 +681,7 @@ with tab2:
                 else if (t === rootNode.id) outlineIds.push(s);
               }}
               
-              // Lọc lấy 6 luận điểm chính và gán lại nhomType theo thứ tự sắp xếp gốc của chúng
               let outlineNodes = particles.filter(p => outlineIds.includes(p.id));
-              // Sắp xếp các luận điểm theo ID tăng dần để đảm bảo thứ tự logic từ Mở bài đến Kết bài
               outlineNodes.sort((a, b) => a.id - b.id);
               
               let oGroups = ['mo_bai', 'giai_thich', 'phan_tich_chung_minh', 'ban_luan_mo_rong', 'bai_hoc', 'ket_bai'];
@@ -697,6 +695,9 @@ with tab2:
                 let node = outlineNodes[i];
                 node.tx = col2;
                 node.ty = outlineYSpacing[i] || 275;
+                
+                // Đăng ký slot đích
+                slots.push({{ id: 'outline_' + node.id, x: col2, y: node.ty, pId: node.id }});
               }}
               
               // Tìm các hạt con chi tiết liên kết tương ứng với từng luận điểm
@@ -735,22 +736,23 @@ with tab2:
                 if (children.length === 1) {{
                   let p = children[0];
                   p.tx = col3; p.ty = oy;
+                  slots.push({{ id: 'child_' + p.id, x: col3, y: oy, pId: p.id }});
                 }} else if (children.length === 2) {{
                   let p1 = children[0];
                   let p2 = children[1];
-                  if (p1) {{ p1.tx = col3; p1.ty = oy - 25 * scaleFactor; }}
-                  if (p2) {{ p2.tx = col3; p2.ty = oy + 25 * scaleFactor; }}
+                  if (p1) {{ p1.tx = col3; p1.ty = oy - 25 * scaleFactor; slots.push({{ id: 'child_' + p1.id, x: col3, y: p1.ty, pId: p1.id }}); }}
+                  if (p2) {{ p2.tx = col3; p2.ty = oy + 25 * scaleFactor; slots.push({{ id: 'child_' + p2.id, x: col3, y: p2.ty, pId: p2.id }}); }}
                 }} else if (children.length >= 3) {{
                   let p1 = children[0];
                   let p2 = children[1];
                   let p3 = children[2];
-                  if (p1) {{ p1.tx = col3; p1.ty = oy - 35 * scaleFactor; }}
-                  if (p2) {{ p2.tx = col3; p2.ty = oy; }}
-                  if (p3) {{ p3.tx = col3; p3.ty = oy + 35 * scaleFactor; }}
+                  if (p1) {{ p1.tx = col3; p1.ty = oy - 35 * scaleFactor; slots.push({{ id: 'child_' + p1.id, x: col3, y: p1.ty, pId: p1.id }}); }}
+                  if (p2) {{ p2.tx = col3; p2.ty = oy; slots.push({{ id: 'child_' + p2.id, x: col3, y: p2.ty, pId: p2.id }}); }}
+                  if (p3) {{ p3.tx = col3; p3.ty = oy + 35 * scaleFactor; slots.push({{ id: 'child_' + p3.id, x: col3, y: p3.ty, pId: p3.id }}); }}
                 }}
               }}
               
-              // Đánh dấu hạt hỏa mù (hạt không thuộc sơ đồ liên kết)
+              // Đánh dấu hạt hỏa mù
               for (let i = 0; i < particles.length; i++) {{
                 let p = particles[i];
                 if (p.tx === null && p.ty === null) {{
@@ -773,6 +775,102 @@ with tab2:
               return list;
             }}
             
+            function setupFireworks() {{
+              fireworks = [];
+              let palette = [
+                {{ r: 255, g: 0, b: 127 }},
+                {{ r: 255, g: 215, b: 0 }},
+                {{ r: 0, g: 255, b: 204 }},
+                {{ r: 255, g: 87, b: 51 }},
+                {{ r: 57, g: 255, b: 20 }}
+              ];
+              for (let i = 0; i < 5; i++) {{
+                let c = random(palette);
+                fireworks.push({{
+                  x: random(width * 0.2, width * 0.8),
+                  y: height,
+                  targetY: random(80, 220),
+                  speed: random(5, 8),
+                  exploded: false,
+                  r: c.r,
+                  g: c.g,
+                  b: c.b,
+                  particles: []
+                }});
+              }}
+            }}
+            
+            function drawFireworks() {{
+              for (let i = fireworks.length - 1; i >= 0; i--) {{
+                let f = fireworks[i];
+                if (!f.exploded) {{
+                  f.y -= f.speed;
+                  fill(f.r, f.g, f.b);
+                  noStroke();
+                  ellipse(f.x, f.y, 6);
+                  
+                  if (f.y <= f.targetY) {{
+                    f.exploded = true;
+                    // Sinh tàn pháo hoa
+                    for (let j = 0; j < 35; j++) {{
+                      let angle = random(TWO_PI);
+                      let speed = random(1.5, 4.5);
+                      f.particles.push({{
+                        x: f.x,
+                        y: f.y,
+                        vx: cos(angle) * speed,
+                        vy: sin(angle) * speed,
+                        alpha: 255,
+                        decay: random(3, 7)
+                      }});
+                    }}
+                  }}
+                }} else {{
+                  let alive = false;
+                  for (let j = 0; j < f.particles.length; j++) {{
+                    let p = f.particles[j];
+                    if (p.alpha > 0) {{
+                      p.x += p.vx;
+                      p.y += p.vy;
+                      p.vy += 0.08; // trọng lực tàn pháo
+                      p.alpha -= p.decay;
+                      
+                      fill(f.r, f.g, f.b, p.alpha);
+                      noStroke();
+                      ellipse(p.x, p.y, 4);
+                      alive = true;
+                    }}
+                  }}
+                  if (!alive) {{
+                    fireworks.splice(i, 1);
+                  }}
+                }}
+              }}
+              
+              // Tự động bắn tiếp pháo hoa mờ khi thắng cuộc
+              if (showSuccessText && random(1) < 0.04) {{
+                let palette = [
+                  {{ r: 255, g: 0, b: 127 }},
+                  {{ r: 255, g: 215, b: 0 }},
+                  {{ r: 0, g: 255, b: 204 }},
+                  {{ r: 255, g: 87, b: 51 }},
+                  {{ r: 57, g: 255, b: 20 }}
+                ];
+                let c = random(palette);
+                fireworks.push({{
+                  x: random(width * 0.1, width * 0.9),
+                  y: height,
+                  targetY: random(80, 250),
+                  speed: random(5, 8),
+                  exploded: false,
+                  r: c.r,
+                  g: c.g,
+                  b: c.b,
+                  particles: []
+                }});
+              }}
+            }}
+            
             function draw() {{
               // Hiệu ứng Rung lắc (Camera Shake) khi nổ
               if (shakeFrames > 0) {{
@@ -784,38 +882,19 @@ with tab2:
               background('#F1F5F9');
               
               // 1. Vẽ các ô chứa mục tiêu (Slots) ở bên trái làm đích kéo thả
-              for (let i = 0; i < particles.length; i++) {{
-                let p = particles[i];
-                if (p.tx !== null && !p.isStatic) {{
-                  stroke('#94A3B8');
-                  strokeWeight(1.5);
-                  drawingContext.setLineDash([4, 6]); // Nét đứt mờ
-                  noFill();
-                  ellipse(p.tx, p.ty, p.radius * 2);
-                  drawingContext.setLineDash([]); // Tắt nét đứt
-                  
-                  // Chỉ hiển thị nhãn gợi ý khi hạt chưa lắp ráp đúng chỗ
-                  if (!p.isSnapped) {{
-                    noStroke();
-                    fill('#94A3B8');
-                    textSize(10 * scaleFactor);
-                    textAlign(CENTER, CENTER);
-                    
-                    let label = "";
-                    if (p.nhomType === 'mo_bai') label = "Mở bài";
-                    else if (p.nhomType === 'giai_thich') label = "Giải thích";
-                    else if (p.nhomType === 'phan_tich_chung_minh') label = "Chứng minh";
-                    else if (p.nhomType === 'ban_luan_mo_rong') label = "Bàn luận";
-                    else if (p.nhomType === 'bai_hoc') label = "Bài học";
-                    else if (p.nhomType === 'ket_bai') label = "Kết bài";
-                    else label = "Chi tiết";
-                    
-                    text(label, p.tx, p.ty);
-                  }}
-                }}
+              for (let i = 0; i < slots.length; i++) {{
+                let slot = slots[i];
+                stroke('#94A3B8');
+                strokeWeight(1.5);
+                drawingContext.setLineDash([4, 6]); // Nét đứt mờ
+                noFill();
+                ellipse(slot.x, slot.y, (outlineGroups.includes(particles.find(p=>p.id===slot.pId)?.nhomType) ? 88/2 : 78/2) * 2 * scaleFactor);
+                drawingContext.setLineDash([]); // Tắt nét đứt
+                
+                // Đã ẩn hoàn toàn dòng chữ gợi ý chữ mờ để tăng độ thử thách
               }}
               
-              // 2. Vẽ đường nối (Links) - CHỈ hiển thị nếu hạt nguồn & hạt đích đều đã được snap chính xác
+              // 2. Vẽ đường nối (Links) - CHỈ hiển thị nếu cả 2 hạt liên quan đều đã được snap CHÍNH XÁC vào ô của nó
               stroke('#94A3B8');
               strokeWeight(1.8);
               for (let i = 0; i < links.length; i++) {{
@@ -823,7 +902,9 @@ with tab2:
                 let p1 = particles.find(p => p.id === Number(link.source));
                 let p2 = particles.find(p => p.id === Number(link.target));
                 if (p1 && p2) {{
-                  if ((p1.isStatic || p1.isSnapped) && (p2.isStatic || p2.isSnapped)) {{
+                  let p1Ok = p1.isStatic || (p1.isSnapped && p1.isCorrectlySnapped);
+                  let p2Ok = p2.isStatic || (p2.isSnapped && p2.isCorrectlySnapped);
+                  if (p1Ok && p2Ok) {{
                     line(p1.x, p1.y, p2.x, p2.y);
                   }}
                 }}
@@ -854,7 +935,7 @@ with tab2:
                   // Đồng thời làm sáng các hạt chi tiết đã snap của luận điểm
                   let children = getChildren(currentP.id);
                   for (let child of children) {{
-                    if (child.isSnapped) {{
+                    if (child.isSnapped && child.isCorrectlySnapped) {{
                       line(currentP.x, currentP.y, child.x, child.y);
                     }}
                   }}
@@ -881,8 +962,16 @@ with tab2:
               for (let i = 0; i < particles.length; i++) {{
                 let p = particles[i];
                 
-                if (p.isSnapped || p.isStatic) {{
-                  // Đứng yên tuyệt đối nếu đã snap đúng vị trí
+                if (p.isSnapped) {{
+                  // Đứng yên tại ô slot nó dính vào (kể cả snap sai)
+                  let slot = slots.find(s => s.id === p.currentSlotId);
+                  if (slot) {{
+                    p.x = slot.x;
+                    p.y = slot.y;
+                  }}
+                  p.vx = 0;
+                  p.vy = 0;
+                }} else if (p.isStatic) {{
                   p.x = p.tx;
                   p.y = p.ty;
                   p.vx = 0;
@@ -959,7 +1048,10 @@ with tab2:
                 drawWrappedText(p.ten, p.x, p.y, p.radius);
               }}
               
-              // 6. Vẽ nút bấm THỰC HIỆN THÍ NGHIỆM (Capsule Button - Tăng độ rộng lên 180 để chứa nhãn mới)
+              // 6. Vẽ pháo hoa chào mừng
+              drawFireworks();
+              
+              // 7. Vẽ nút bấm THỰC HIỆN THÍ NGHIỆM (Tăng độ rộng lên 180 để chứa nhãn mới)
               let btnW = 180 * scaleFactor;
               let btnH = 38 * scaleFactor;
               let btnX = width - btnW - 15;
@@ -971,13 +1063,12 @@ with tab2:
               rect(btnX, btnY, btnW, btnH, 19 * scaleFactor);
               
               fill(255);
-              // Chỉnh font nhỏ hơn một chút cho vừa vặn dòng chữ dài
               textSize(10.5 * scaleFactor);
               textAlign(CENTER, CENTER);
               textStyle(BOLD);
               text("THỰC HIỆN THÍ NGHIỆM", btnX + btnW/2, btnY + btnH/2);
               
-              // 7. Vẽ Flash chớp màn hình khi lỗi
+              // 8. Vẽ Flash chớp màn hình khi lỗi
               if (flashFrames > 0) {{
                 fill(239, 68, 68, map(flashFrames, 0, 15, 0, 100)); // Đỏ chớp tắt
                 noStroke();
@@ -989,7 +1080,7 @@ with tab2:
                 pop(); // Kết thúc dịch chuyển rung lắc camera
               }}
               
-              // 8. Hiển thị thông báo trạng thái
+              // 9. Hiển thị thông báo trạng thái
               if (showExplosionText && explosionTimer > 0) {{
                 fill('#DC2626');
                 stroke('#FFFFFF');
@@ -997,7 +1088,7 @@ with tab2:
                 textSize(20 * scaleFactor);
                 textStyle(BOLD);
                 textAlign(CENTER, CENTER);
-                text("💥 SAI CẤU TRÚC / CHƯA XẾP XONG! HẠT ĐẠ VÙNG NỔ! HÃY CHỌN LẠI! 💥", width / 2, height / 2);
+                text("💥 SAI CẤU TRÚC / CHƯA XẾP XONG! HẠT ĐÃ NỔ TUNG! HÃY CHỌN LẠI! 💥", width / 2, height / 2);
                 explosionTimer--;
                 if (explosionTimer === 0) showExplosionText = false;
               }}
@@ -1050,27 +1141,28 @@ with tab2:
             
             // Logic kiểm định hoàn thành bài học
             function checkCompletion() {{
-              let allSnapped = true;
+              let allCorrectlySnapped = true;
               
-              // Duyệt kiểm tra tất cả các hạt hợp lệ (có tx khác null) xem đã snap hết chưa
+              // Duyệt kiểm tra xem tất cả các hạt cần snap đã khớp đúng vị trí slot của nó chưa
               for (let i = 0; i < particles.length; i++) {{
                 let p = particles[i];
                 if (p.tx !== null && !p.isStatic) {{
-                  if (!p.isSnapped) {{
-                    allSnapped = false;
+                  if (!p.isSnapped || !p.isCorrectlySnapped) {{
+                    allCorrectlySnapped = false;
                     break;
                   }}
                 }}
               }}
               
-              if (allSnapped) {{
+              if (allCorrectlySnapped) {{
                 showSuccessText = true;
-                successTimer = 220;
+                successTimer = 250;
                 flowActive = true;
                 flowStep = 0;
                 flowProgress = 0.0;
                 showExplosionText = false;
                 
+                setupFireworks(); // Bắn pháo hoa chào mừng!
                 playSuccessSound(); // Nhạc chiến thắng!
               }} else {{
                 // Kích hoạt hiệu ứng bùng nổ camera
@@ -1083,14 +1175,22 @@ with tab2:
                 
                 playExplosionSound(); // Tiếng nổ tung!
                 
-                // Thổi bay các hạt tự do (chưa snap / hạt hỏa mù) ngược về góc bên phải
+                // Thổi bay các hạt chưa snap HOẶC hạt snap SAI vị trí (và các hạt hỏa mù) ngược về góc bên phải
                 for (let i = 0; i < particles.length; i++) {{
                   let p = particles[i];
-                  if (!p.isSnapped && !p.isStatic) {{
-                    let angle = random(-PI/4, PI/4); // Thổi chéo về bên phải
-                    let speed = random(14, 24);
-                    p.vx = cos(angle) * speed;
-                    p.vy = sin(angle) * speed;
+                  if (!p.isStatic) {{
+                    if (!p.isSnapped || !p.isCorrectlySnapped) {{
+                      // Gỡ trạng thái snap
+                      p.isSnapped = false;
+                      p.currentSlotId = null;
+                      p.isCorrectlySnapped = false;
+                      
+                      // Thổi bay bằng lực nổ ngẫu nhiên về phía phải
+                      let angle = random(-PI/4, PI/4);
+                      let speed = random(14, 24);
+                      p.vx = cos(angle) * speed;
+                      p.vy = sin(angle) * speed;
+                    }}
                   }}
                 }}
               }}
@@ -1119,6 +1219,9 @@ with tab2:
                   
                   draggedParticle = p;
                   p.isSnapped = false; // Gỡ ra khỏi slot khi bắt đầu kéo
+                  p.currentSlotId = null;
+                  p.isCorrectlySnapped = false;
+                  
                   offsetX = p.x - tX;
                   offsetY = p.y - tY;
                   p.vx = 0;
@@ -1141,21 +1244,44 @@ with tab2:
             
             function endDrag() {{
               if (draggedParticle) {{
-                // Kiểm định xem hạt thả ra có rơi vào gần vị trí đích (Target slot) không
-                if (draggedParticle.tx !== null) {{
-                  let d = dist(draggedParticle.x, draggedParticle.y, draggedParticle.tx, draggedParticle.ty);
-                  // Tăng khoảng cách snap lên 60 * scaleFactor để dễ dàng bắt dính hơn
-                  if (d < 60 * scaleFactor) {{
-                    draggedParticle.x = draggedParticle.tx;
-                    draggedParticle.y = draggedParticle.ty;
-                    draggedParticle.isSnapped = true;
-                    draggedParticle.vx = 0;
-                    draggedParticle.vy = 0;
-                    
-                    playSnapSound(); // Âm thanh snap cạch cạch vui tai
-                  }} else {{
-                    draggedParticle.isSnapped = false;
+                // Tìm kiếm ô slot trống gần nhất (chưa bị chiếm dụng bởi hạt khác)
+                let closestSlot = null;
+                let minDist = 99999;
+                
+                for (let i = 0; i < slots.length; i++) {{
+                  let slot = slots[i];
+                  // Kiểm định xem slot đã bị hạt khác snap vào chưa
+                  let isOccupied = particles.some(other => other.isSnapped && other.currentSlotId === slot.id && other.id !== draggedParticle.id);
+                  if (!isOccupied) {{
+                    let d = dist(draggedParticle.x, draggedParticle.y, slot.x, slot.y);
+                    if (d < minDist) {{
+                      minDist = d;
+                      closestSlot = slot;
+                    }}
                   }}
+                }}
+                
+                // Chấp nhận bắt dính cả nội dung sai nếu khoảng cách gần (< 60 * scaleFactor)
+                if (closestSlot && minDist < 60 * scaleFactor) {{
+                  draggedParticle.x = closestSlot.x;
+                  draggedParticle.y = closestSlot.y;
+                  draggedParticle.isSnapped = true;
+                  draggedParticle.currentSlotId = closestSlot.id;
+                  draggedParticle.vx = 0;
+                  draggedParticle.vy = 0;
+                  
+                  // Chỉ coi là dính ĐÚNG khi hạt trùng với pId đích của slot đó
+                  if (closestSlot.pId === draggedParticle.id) {{
+                    draggedParticle.isCorrectlySnapped = true;
+                  }} else {{
+                    draggedParticle.isCorrectlySnapped = false;
+                  }}
+                  
+                  playSnapSound();
+                }} else {{
+                  draggedParticle.isSnapped = false;
+                  draggedParticle.currentSlotId = null;
+                  draggedParticle.isCorrectlySnapped = false;
                 }}
                 draggedParticle = null;
               }}
@@ -1218,10 +1344,16 @@ with tab2:
               
               assignTargets();
               
-              // Đưa các hạt đã snap về vị trí co giãn mới
+              // Đưa các hạt đã snap về vị trí co giãn mới tương ứng với Slot của nó
               for (let i = 0; i < particles.length; i++) {{
                 let p = particles[i];
-                if (p.isSnapped || p.isStatic) {{
+                if (p.isSnapped) {{
+                  let slot = slots.find(s => s.id === p.currentSlotId);
+                  if (slot) {{
+                    p.x = slot.x;
+                    p.y = slot.y;
+                  }}
+                }} else if (p.isStatic) {{
                   p.x = p.tx;
                   p.y = p.ty;
                 }}
