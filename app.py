@@ -261,7 +261,7 @@ Trả về kết quả 100% dưới dạng Markdown Table để tôi hiển th�
                 st.error(f"❌ Xảy ra lỗi trong quá trình xử lý: {str(e)}")
 
 # ------------------------------------------
-# TAB 2: PHÒNG THÍ NGHIỆM VĂN HỌC (Trò chơi kéo thả âm thanh tương tác)
+# TAB 2: PHÒNG THÍ NGHIỆM VĂN HỌC (Ghép nối sơ đồ trò chơi)
 # ------------------------------------------
 with tab2:
     st.title("🧪 Phòng Thí Nghiệm Văn Học")
@@ -281,7 +281,7 @@ with tab2:
         st.session_state.current_literature_topic = topic_input
         st.session_state.literature_json = None
         
-    start_btn = st.button("BẮT ĐẦU THÍ NGHIỆM")
+    start_btn = st.button("Vào phòng thí nghiệm")
     
     if start_btn:
         if not topic_input.strip():
@@ -366,14 +366,14 @@ with tab2:
                         st.error(f"❌ Lỗi xử lý từ Gemini: {str(e)}")
                         
     if st.session_state.literature_json:
-        st.subheader("🧩 Trò chơi ghép nối sơ đồ lập luận xã hội")
+        st.subheader("🔮 Sơ đồ hạt vật lý tương tác liên kết")
         st.markdown(
             "🎮 **LUẬT CHƠI & HƯỚNG DẪN:**\\n"
             "1. **Phía bên trái** là các ô tròn nét đứt (slots) gợi ý các phần của bài văn.\\n"
             "2. **Phía bên phải** là các hạt luận điểm, dẫn chứng và **hạt tung hỏa mù (decoy)** nằm lộn xộn.\\n"
             "3. Sử dụng ngón tay chạm vuốt (Smartphone) hoặc chuột kéo thả (PC) đưa các hạt từ bên phải lắp vào đúng vị trí bên trái. **Nếu xếp đúng hạt, đường kết nối sẽ tự động phát sáng hiện ra**.\\n"
             "4. Các hạt hỏa mù (nội dung lệch lạc/sai) không có ô trống nào bên trái, hãy để chúng bay tự do bên phải.\\n"
-            "5. Sau khi ghép xong, hãy nhấn nút **ĐÃ HOÀN THÀNH** ở góc dưới bên phải để kiểm tra. Nếu xếp sai/thiếu, **hệ thống sẽ rung chuyển và nổ văng các hạt chưa snap về bên phải**! Nếu xếp đúng, **luồng sáng tư duy sẽ chạy mượt mà từ Mở bài đến Kết bài**!"
+            "5. Sau khi ghép xong, hãy nhấn nút **THỰC HIỆN THÍ NGHIỆM** ở góc dưới bên phải để kiểm tra. Nếu xếp sai/thiếu, **hệ thống sẽ rung chuyển và nổ văng các hạt chưa snap về bên phải**! Nếu xếp đúng, **luồng sáng tư duy sẽ chạy mượt mà từ Mở bài đến Kết bài**!"
         )
         
         # Chuyển đổi dữ liệu JSON sang chuỗi an toàn
@@ -634,7 +634,7 @@ with tab2:
                 }});
               }}
               
-              // 2. Định nghĩa vị trí đích (Targets) dựa trên loại hạt đã chuẩn hóa
+              // 2. Định nghĩa vị trí đích (Targets) dựa trên cấu trúc hình học liên kết (Topology)
               assignTargets();
               
               // 3. Phân bổ vị trí khởi tạo: Luận đề nằm tĩnh bên trái, còn lại lộn xộn bên phải
@@ -661,46 +661,72 @@ with tab2:
             }}
             
             function assignTargets() {{
-              let rootNode = particles.find(p => p.nhomType === 'luan_de');
-              let outlineNodes = particles.filter(p => outlineGroups.includes(p.nhomType));
-              outlineNodes.sort((a, b) => outlineGroups.indexOf(a.nhomType) - outlineGroups.indexOf(b.nhomType));
+              // Thuật toán dựa trên Topology liên kết để giải quyết triệt để lỗi Gemini đặt tên nhóm lộn xộn
+              let rootNode = particles.find(p => p.nhomType === 'luan_de') || particles[0];
+              if (!rootNode) return;
               
+              rootNode.tx = col1;
+              rootNode.ty = 275;
+              rootNode.isSnapped = true;
+              rootNode.isStatic = true;
+              rootNode.nhomType = 'luan_de';
+              
+              // Tìm các hạt kết nối trực tiếp với hạt gốc (Luận đề) -> Đây chính là 6 luận điểm lớn
+              let outlineIds = [];
+              for (let i = 0; i < links.length; i++) {{
+                let link = links[i];
+                let s = Number(link.source);
+                let t = Number(link.target);
+                if (s === rootNode.id) outlineIds.push(t);
+                else if (t === rootNode.id) outlineIds.push(s);
+              }}
+              
+              // Lọc lấy 6 luận điểm chính và gán lại nhomType theo thứ tự sắp xếp gốc của chúng
+              let outlineNodes = particles.filter(p => outlineIds.includes(p.id));
+              // Sắp xếp các luận điểm theo ID tăng dần để đảm bảo thứ tự logic từ Mở bài đến Kết bài
+              outlineNodes.sort((a, b) => a.id - b.id);
+              
+              let oGroups = ['mo_bai', 'giai_thich', 'phan_tich_chung_minh', 'ban_luan_mo_rong', 'bai_hoc', 'ket_bai'];
+              for (let i = 0; i < outlineNodes.length; i++) {{
+                outlineNodes[i].nhomType = oGroups[i] || 'luan_diem';
+              }}
+              
+              // Đặt vị trí cho các luận điểm ở cột 2
+              let outlineYSpacing = [50, 140, 230, 320, 410, 500];
+              for (let i = 0; i < outlineNodes.length; i++) {{
+                let node = outlineNodes[i];
+                node.tx = col2;
+                node.ty = outlineYSpacing[i] || 275;
+              }}
+              
+              // Tìm các hạt con chi tiết liên kết tương ứng với từng luận điểm
               childNodesMap = {{}};
               for (let outline of outlineNodes) {{
                 let children = [];
-                for (let link of links) {{
+                for (let i = 0; i < links.length; i++) {{
+                  let link = links[i];
                   let sId = Number(link.source);
                   let tId = Number(link.target);
                   let oId = Number(outline.id);
                   
-                  if (sId === oId) {{
-                    let targetNode = particles.find(p => p.id === tId && p.nhomType === 'chi_tiet');
-                    if (targetNode) children.push(targetNode);
-                  }} else if (tId === oId) {{
-                    let sourceNode = particles.find(p => p.id === sId && p.nhomType === 'chi_tiet');
-                    if (sourceNode) children.push(sourceNode);
+                  if (sId === oId && tId !== rootNode.id) {{
+                    let targetNode = particles.find(p => p.id === tId);
+                    if (targetNode) {{
+                      targetNode.nhomType = 'chi_tiet';
+                      children.push(targetNode);
+                    }}
+                  }} else if (tId === oId && sId !== rootNode.id) {{
+                    let sourceNode = particles.find(p => p.id === sId);
+                    if (sourceNode) {{
+                      sourceNode.nhomType = 'chi_tiet';
+                      children.push(sourceNode);
+                    }}
                   }}
                 }}
                 childNodesMap[outline.id] = children;
               }}
               
-              // Khớp vị trí Luận đề
-              if (rootNode) {{
-                rootNode.tx = col1;
-                rootNode.ty = 275;
-                rootNode.isSnapped = true;
-                rootNode.isStatic = true;
-              }}
-              
-              // Khớp vị trí 6 luận điểm lớn
-              let outlineYSpacing = [50, 140, 230, 320, 410, 500];
-              for (let i = 0; i < outlineNodes.length; i++) {{
-                let node = outlineNodes[i];
-                node.tx = col2;
-                node.ty = outlineYSpacing[i];
-              }}
-              
-              // Khớp vị trí các hạt chi tiết nhánh của từng luận điểm
+              // Đặt vị trí cho các hạt chi tiết con ở cột 3
               for (let i = 0; i < outlineNodes.length; i++) {{
                 let outline = outlineNodes[i];
                 let oy = outlineYSpacing[i];
@@ -723,6 +749,28 @@ with tab2:
                   if (p3) {{ p3.tx = col3; p3.ty = oy + 35 * scaleFactor; }}
                 }}
               }}
+              
+              // Đánh dấu hạt hỏa mù (hạt không thuộc sơ đồ liên kết)
+              for (let i = 0; i < particles.length; i++) {{
+                let p = particles[i];
+                if (p.tx === null && p.ty === null) {{
+                  p.nhomType = 'hoa_mu';
+                }}
+              }}
+            }}
+            
+            function getChildren(parentId) {{
+              let list = [];
+              for (let link of links) {{
+                if (Number(link.source) === parentId) {{
+                  let p = particles.find(p => p.id === Number(link.target) && p.nhomType === 'chi_tiet');
+                  if (p) list.push(p);
+                }} else if (Number(link.target) === parentId) {{
+                  let p = particles.find(p => p.id === Number(link.source) && p.nhomType === 'chi_tiet');
+                  if (p) list.push(p);
+                }}
+              }}
+              return list;
             }}
             
             function draw() {{
@@ -911,8 +959,8 @@ with tab2:
                 drawWrappedText(p.ten, p.x, p.y, p.radius);
               }}
               
-              // 6. Vẽ nút bấm ĐÃ HOÀN THÀNH (Capsule Button)
-              let btnW = 150 * scaleFactor;
+              // 6. Vẽ nút bấm THỰC HIỆN THÍ NGHIỆM (Capsule Button - Tăng độ rộng lên 180 để chứa nhãn mới)
+              let btnW = 180 * scaleFactor;
               let btnH = 38 * scaleFactor;
               let btnX = width - btnW - 15;
               let btnY = height - btnH - 15;
@@ -923,10 +971,11 @@ with tab2:
               rect(btnX, btnY, btnW, btnH, 19 * scaleFactor);
               
               fill(255);
-              textSize(12 * scaleFactor);
+              // Chỉnh font nhỏ hơn một chút cho vừa vặn dòng chữ dài
+              textSize(10.5 * scaleFactor);
               textAlign(CENTER, CENTER);
               textStyle(BOLD);
-              text("ĐÃ HOÀN THÀNH", btnX + btnW/2, btnY + btnH/2);
+              text("THỰC HIỆN THÍ NGHIỆM", btnX + btnW/2, btnY + btnH/2);
               
               // 7. Vẽ Flash chớp màn hình khi lỗi
               if (flashFrames > 0) {{
@@ -948,7 +997,7 @@ with tab2:
                 textSize(20 * scaleFactor);
                 textStyle(BOLD);
                 textAlign(CENTER, CENTER);
-                text("💥 SAI CẤU TRÚC / CHƯA XẾP XONG! HẠT ĐÃ NỔ TUNG! HÃY CHỌN LẠI! 💥", width / 2, height / 2);
+                text("💥 SAI CẤU TRÚC / CHƯA XẾP XONG! HẠT ĐẠ VÙNG NỔ! HÃY CHỌN LẠI! 💥", width / 2, height / 2);
                 explosionTimer--;
                 if (explosionTimer === 0) showExplosionText = false;
               }}
@@ -1048,7 +1097,7 @@ with tab2:
             }}
             
             function checkButtonClick(tX, tY) {{
-              let btnW = 150 * scaleFactor;
+              let btnW = 180 * scaleFactor;
               let btnH = 38 * scaleFactor;
               let btnX = width - btnW - 15;
               let btnY = height - btnH - 15;
