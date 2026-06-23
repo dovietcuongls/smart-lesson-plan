@@ -291,7 +291,7 @@ with tab2:
             if not configure_genai():
                 st.error("⚠️ LỖI: Chưa cấu hình GOOGLE_API_KEY ở backend. Vui lòng kiểm tra mã nguồn (app.py) hoặc cấu hình Streamlit Secrets.")
             else:
-                with st.spinner("Gemini đang thiết lập sơ đồ liên kết và chuẩn bị các hạt thử thách..."):
+                with st.spinner('Thầy Đỗ Viết Cường đang chuẩn bị "hóa chất" để các em vào phòng thí nghiệm...'):
                     try:
                         # Lấy danh sách model khả dụng
                         available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
