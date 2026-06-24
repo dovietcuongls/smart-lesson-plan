@@ -444,8 +444,52 @@ with tab2:
             let showErrorPopup = false;
             let errorList = [];
             
+            // Hạt khói hóa học khi snap
+            let smokeParticles = [];
+            
             // Web Audio API Click/Snap Sound Synthesizer
             let audioCtx = null;
+            
+            function hexToRgb(hex) {{
+              let c = hex.substring(1);
+              if (c.length === 3) {{
+                c = c[0] + c[0] + c[1] + c[1] + c[2] + c[2];
+              }}
+              let num = parseInt(c, 16);
+              return {{
+                r: (num >> 16) & 255,
+                g: (num >> 8) & 255,
+                b: num & 255
+              }};
+            }}
+            
+            function spawnSmoke(x, y, hexColor) {{
+              let rgb = {{ r: 120, g: 120, b: 120 }};
+              try {{
+                if (hexColor && hexColor.startsWith('#')) {{
+                  rgb = hexToRgb(hexColor);
+                }}
+              }} catch(e) {{
+                console.log(e);
+              }}
+              
+              for (let i = 0; i < 24; i++) {{
+                let angle = random(TWO_PI);
+                let speed = random(0.6, 3.4);
+                smokeParticles.push({{
+                  x: x + random(-10, 10) * scaleFactor,
+                  y: y + random(-10, 10) * scaleFactor,
+                  vx: cos(angle) * speed,
+                  vy: sin(angle) * speed - random(0.8, 2.2), // Hạt khói bốc lên trên
+                  r: rgb.r,
+                  g: rgb.g,
+                  b: rgb.b,
+                  alpha: random(180, 240),
+                  size: random(14, 28) * scaleFactor,
+                  decay: random(4, 7)
+                }});
+              }}
+            }}
             
             function playClickSound() {{
               try {{
@@ -1077,6 +1121,22 @@ with tab2:
               // 6. Vẽ pháo hoa chào mừng
               drawFireworks();
               
+              // Vẽ các hạt khói phản ứng hóa học
+              for (let i = smokeParticles.length - 1; i >= 0; i--) {{
+                let p = smokeParticles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vy -= 0.05 * scaleFactor; // Lực nâng khí ga bốc lên
+                p.alpha -= p.decay;
+                if (p.alpha <= 0) {{
+                  smokeParticles.splice(i, 1);
+                }} else {{
+                  noStroke();
+                  fill(p.r, p.g, p.b, p.alpha);
+                  ellipse(p.x, p.y, p.size);
+                }}
+              }}
+              
               // 7. Vẽ nút bấm THỰC HIỆN THÍ NGHIỆM (Tăng độ rộng lên 180 để chứa nhãn mới)
               let btnW = 180 * scaleFactor;
               let btnH = 38 * scaleFactor;
@@ -1446,6 +1506,9 @@ with tab2:
                     draggedParticle.vx = 0;
                     draggedParticle.vy = 0;
                     draggedParticle.isCorrectlySnapped = (closestSlot.pId === draggedParticle.id);
+                    
+                    // Tạo khói hóa học theo màu sắc của hạt cấp 1 khi snap thành công
+                    spawnSmoke(closestSlot.x, closestSlot.y, draggedParticle.mau);
                   }} else {{
                     // Hạt cấp 2 dính vào slot của hạt cấp 1
                     draggedParticle.isSnapped = true;
@@ -1453,6 +1516,9 @@ with tab2:
                     draggedParticle.vx = 0;
                     draggedParticle.vy = 0;
                     draggedParticle.isCorrectlySnapped = (closestSlot.id === 'outline_' + draggedParticle.correctParentId);
+                    
+                    // Tạo khói hóa học theo màu sắc của hạt cấp 2 khi snap thành công
+                    spawnSmoke(col3, closestSlot.y, draggedParticle.mau);
                   }}
                   playSnapSound();
                 }} else {{
