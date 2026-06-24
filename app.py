@@ -1160,7 +1160,7 @@ with tab2:
                 for (let i = 0; i < errorList.length; i++) {{
                   if (i >= maxVisible) {{
                     fill('#94A3B8');
-                    text(`... và còn ${errorList.length - maxVisible} lỗi khác chưa khắc phục.`, cardX + 30, startY + i * 24);
+                    text(`... và còn ${{errorList.length - maxVisible}} lỗi khác chưa khắc phục.`, cardX + 30, startY + i * 24);
                     break;
                   }}
                   
@@ -1237,9 +1237,9 @@ with tab2:
                 let label = correctL1 ? correctL1.ten : "Không rõ";
                 
                 if (!p) {{
-                  list.push(`Thiếu luận điểm cấp 1: Bạn chưa xếp hạt nào vào vị trí của "${label}".`);
+                  list.push(`Thiếu luận điểm cấp 1: Bạn chưa xếp hạt nào vào vị trí của "${{label}}".`);
                 }} else if (p.id !== slot.pId) {{
-                  list.push(`Sai luận điểm cấp 1: Hạt "${p.ten}" đang xếp ở vị trí của "${label}".`);
+                  list.push(`Sai luận điểm cấp 1: Hạt "${{p.ten}}" đang xếp ở vị trí của "${{label}}".`);
                 }}
               }}
               
@@ -1247,7 +1247,7 @@ with tab2:
               for (let p of particles) {{
                 if (p.nhomType === 'chi_tiet') {{
                   if (!p.isSnapped || !p.parentSlotId) {{
-                    list.push(`Thiếu liên kết: Ý "${p.ten}" chưa được kéo thả vào luận điểm nào.`);
+                    list.push(`Thiếu liên kết: Ý "${{p.ten}}" chưa được kéo thả vào luận điểm nào.`);
                   }} else if (p.parentSlotId !== 'outline_' + p.correctParentId) {{
                     let currentParentSlot = slots.find(s => s.id === p.parentSlotId);
                     let currentParentP = particles.find(other => other.id === currentParentSlot.pId);
@@ -1256,14 +1256,14 @@ with tab2:
                     let currentLabel = currentParentP ? currentParentP.ten : "Không rõ";
                     let correctLabel = correctParentP ? correctParentP.ten : "Không rõ";
                     
-                    list.push(`Sai liên kết: Ý "${p.ten}" đang xếp vào "${currentLabel}" (đúng ra phải thuộc "${correctLabel}").`);
+                    list.push(`Sai liên kết: Ý "${{p.ten}}" đang xếp vào "${{currentLabel}}" (đúng ra phải thuộc "${{correctLabel}}").`);
                   }}
                 }} else if (p.nhomType === 'hoa_mu') {{
                   if (p.isSnapped && p.parentSlotId) {{
                     let currentParentSlot = slots.find(s => s.id === p.parentSlotId);
                     let currentParentP = particles.find(other => other.id === currentParentSlot.pId);
                     let currentLabel = currentParentP ? currentParentP.ten : "Không rõ";
-                    list.push(`Thông tin nhiễu: Ý "${p.ten}" là hạt hỏa mù (sai lệch), không được xếp vào "${currentLabel}".`);
+                    list.push(`Thông tin nhiễu: Ý "${{p.ten}}" là hạt hỏa mù (sai lệch), không được xếp vào "${{currentLabel}}".`);
                   }}
                 }}
               }}
