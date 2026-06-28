@@ -490,12 +490,11 @@ with tab_giao_an:
                 if not configure_genai():
                     st.error("⚠️ LỖI: Chưa cấu hình GOOGLE_API_KEY ở backend. Vui lòng kiểm tra mã nguồn (app.py) hoặc cấu hình Streamlit Secrets.")
                 else:
-                    system_instruction = """Bạn là chuyên gia thẩm định và xây dựng chương trình giáo dục phổ thông môn Ngữ văn. Hãy đọc giáo án cũ được cung cấp và tiến hành nâng cấp, tích hợp Khung năng lực số cho người học theo Thông tư số 02/2025/TT-BGDĐT và Khung giáo dục AI theo Quyết định số 3439/QĐ-BGDĐT của Bộ Giáo dục và Đào tạo Việt Nam.
-Yêu cầu tích hợp:
-+ Giữ vững cấu trúc kiến thức đặc trưng của thể loại văn học (Sử thi, Thần thoại, Thơ trữ tình, Bi kịch, Tiểu thuyết...) theo đúng phân phối chương trình Sách giáo khoa Kết nối tri thức.
-+ Đối với cấp THPT, thiết kế các hoạt động học tập tương tác số đạt Mức độ thành thạo Bậc 5 (Nâng cao 1). Học sinh phải đóng vai trò tự chủ: tự khai thác dữ liệu, sử dụng AI tạo sinh có trách nhiệm để kiểm chứng thông tin, tự tạo lập nội dung số đa phương thức hoặc thực hiện trách nhiệm công dân trong môi trường số.
-+ Lồng ghép các mục tiêu số này vào mục 'Mục tiêu bài học (Về năng lực số)' và triển khai các hoạt động cụ thể của học sinh trong mục 'Tiến trình dạy học'.
-+ Bắt buộc đánh dấu bắt đầu và kết thúc của mỗi đoạn văn bản được tích hợp mới bằng cụm từ chính xác: [DIGITAL_START] và [DIGITAL_END] để hệ thống xử lý hậu kỳ bôi vàng."""
+                    system_instruction = """Bạn là chuyên gia giáo dục và công nghệ số môn Ngữ văn. Hãy đọc giáo án cũ được cung cấp và nâng cấp nó bằng cách tích hợp Khung năng lực số (Thông tư số 02/2025/TT-BGDĐT) và Khung giáo dục AI (Quyết định số 3439/QĐ-BGDĐT) của Bộ Giáo dục và Đào tạo Việt Nam.
+Yêu cầu bắt buộc:
+1. GIỮ NGUYÊN BẢN 100% cấu trúc, đề mục, thứ tự các hoạt động, nội dung chi tiết và lời văn của giáo án cũ. Tuyệt đối không viết lại hoặc định nghĩa lại cấu trúc giáo án theo mẫu khác.
+2. CHỈ CHÈN thêm các mục tiêu số hóa (ở mục Mục tiêu) và các hoạt động tương tác số đạt Mức độ thành thạo Bậc 5 (học sinh tự khai thác dữ liệu, sử dụng AI có trách nhiệm, tạo lập sản phẩm số...) vào đúng các bước/hoạt động phù hợp của giáo án cũ mà không xóa đi nội dung gốc.
+3. Bắt buộc đặt các đoạn nội dung mới chèn này ở giữa cặp thẻ [DIGITAL_START] và [DIGITAL_END] để hệ thống xử lý hậu kỳ bôi vàng. Các nội dung gốc cũ không được nằm trong thẻ này."""
                     
                     with st.spinner("AI đang phân tích và tích hợp Khung năng lực số vào giáo án..."):
                         # Lấy danh sách model khả dụng
@@ -523,14 +522,25 @@ Yêu cầu tích hợp:
                         with st.spinner("Đang đóng gói giáo án vào file Word..."):
                             doc = docx.Document()
                             paragraphs = response.text.split('\n')
+                            in_digital_block = False
+                            
                             for p_text in paragraphs:
-                                is_highlighted = "[DIGITAL_START]" in p_text and "[DIGITAL_END]" in p_text
-                                clean_text = p_text.replace("[DIGITAL_START]", "").replace("[DIGITAL_END]", "")
+                                has_start = "[DIGITAL_START]" in p_text
+                                has_end = "[DIGITAL_END]" in p_text
                                 
+                                clean_text = p_text.replace("[DIGITAL_START]", "").replace("[DIGITAL_END]", "")
+                                is_highlighted = in_digital_block or has_start or has_end
+                                
+                                if has_start:
+                                    in_digital_block = True
+                                if has_end:
+                                    in_digital_block = False
+                                    
                                 p = doc.add_paragraph()
-                                run = p.add_run(clean_text)
-                                if is_highlighted:
-                                    run.font.highlight_color = WD_COLOR_INDEX.YELLOW
+                                if clean_text.strip() or p_text.strip():
+                                    run = p.add_run(clean_text)
+                                    if is_highlighted:
+                                        run.font.highlight_color = WD_COLOR_INDEX.YELLOW
                             
                             doc.save("Giao_An_Nang_Luc_So.docx")
                         
