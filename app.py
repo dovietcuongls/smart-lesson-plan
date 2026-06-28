@@ -138,8 +138,12 @@ def markdown_table_to_df(markdown_str):
     return None
 
 # ==========================================
-# GIAO DIỆN CHÍNH (TABS)
+# GIAO DIỆN CHÍNH
 # ==========================================
+st.title("🏛️ Công cụ số hóa")
+st.markdown("**Số hóa quy trình bóc tách công việc từ văn bản nhà nước/nhà trường một cách tự động và chính xác.**")
+st.divider()
+
 tab1, tab2 = st.tabs(["Xử lý văn bản", "Phòng thí nghiệm văn học"])
 
 # ------------------------------------------
@@ -164,9 +168,6 @@ with tab1:
         """)
         
     with col_right:
-        st.title("🏛️ Công cụ số hóa")
-        st.markdown("**Số hóa quy trình bóc tách công việc từ văn bản nhà nước/nhà trường một cách tự động và chính xác.**")
-        st.divider()
 
         PROMPT_TEXT = """Đóng vai một Hiệu trưởng / Quản lý hành chính trường học. Hãy đọc văn bản chỉ đạo sau và bóc tách thông tin thành một bảng nghiêm ngặt. 
 Bảng phải gồm chính xác 4 cột:
