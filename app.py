@@ -123,10 +123,14 @@ def extract_text_from_pptx(file):
     return text
 
 def convert_doc_to_docx_win32(uploaded_file):
+    try:
+        import win32com.client as win32
+        import pythoncom
+    except ImportError:
+        raise Exception("Không hỗ trợ đọc file .doc trên máy chủ Linux/Cloud. Thầy cô vui lòng lưu file giáo án cũ dưới dạng đuôi mới .docx rồi tải lại lên.")
+
     import tempfile
     import os
-    import win32com.client as win32
-    import pythoncom
     
     # Save uploaded file bytes to a temporary .doc file
     temp_dir = tempfile.gettempdir()
@@ -170,10 +174,14 @@ def convert_doc_to_docx_win32(uploaded_file):
             except: pass
 
 def convert_ppt_to_pptx_win32(uploaded_file):
+    try:
+        import win32com.client as win32
+        import pythoncom
+    except ImportError:
+        raise Exception("Không hỗ trợ đọc file .ppt trên máy chủ Linux/Cloud. Thầy cô vui lòng lưu file giáo án cũ dưới dạng đuôi mới .pptx rồi tải lại lên.")
+
     import tempfile
     import os
-    import win32com.client as win32
-    import pythoncom
     
     temp_dir = tempfile.gettempdir()
     input_path = os.path.join(temp_dir, "temp_uploaded_giaoan.ppt")

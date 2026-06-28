@@ -7,4 +7,3 @@ pillow
 pandas
 openpyxl
 python-pptx
-pywin32
