@@ -137,19 +137,83 @@ def markdown_table_to_df(markdown_str):
         return pd.DataFrame(data, columns=headers)
     return None
 
+def export_lesson_plan_to_docx(lesson_plan_text):
+    import docx.shared
+    doc = docx.Document()
+    
+    # Custom margins
+    for section in doc.sections:
+        section.top_margin = docx.shared.Inches(1)
+        section.bottom_margin = docx.shared.Inches(1)
+        section.left_margin = docx.shared.Inches(1)
+        section.right_margin = docx.shared.Inches(1)
+        
+    lines = lesson_plan_text.split('\n')
+    for line in lines:
+        line_strip = line.strip()
+        if not line_strip:
+            continue
+            
+        if line_strip.startswith('# '):
+            doc.add_heading(line_strip[2:], level=1)
+        elif line_strip.startswith('## '):
+            doc.add_heading(line_strip[3:], level=2)
+        elif line_strip.startswith('### '):
+            doc.add_heading(line_strip[4:], level=3)
+        elif line_strip.startswith('- ') or line_strip.startswith('* '):
+            text = line_strip[2:].replace('**', '').replace('*', '')
+            doc.add_paragraph(text, style='List Bullet')
+        elif re.match(r'^\d+\.\s', line_strip):
+            text = line_strip.replace('**', '').replace('*', '')
+            doc.add_paragraph(text)
+        else:
+            text = line_strip.replace('**', '').replace('*', '')
+            doc.add_paragraph(text)
+            
+    buffer = io.BytesIO()
+    doc.save(buffer)
+    return buffer.getvalue()
+
 # ==========================================
 # GIAO DIỆN CHÍNH
 # ==========================================
 st.title("🏛️ Công cụ số hóa")
-st.markdown("**Số hóa quy trình bóc tách công việc từ văn bản nhà nước/nhà trường một cách tự động và chính xác.**")
+st.markdown("**phục vụ công việc chuyển đổi số**")
 st.divider()
 
-tab1, tab2 = st.tabs(["Xử lý văn bản", "Phòng thí nghiệm văn học"])
+# Layout cột dọc: menu bên trái, nội dung bên phải
+col_menu, col_content = st.columns([1, 3.2])
+
+with col_menu:
+    st.markdown("### 🧭 Danh mục")
+    active_tab = st.radio(
+        "Chọn chức năng",
+        options=["📝 Xử lý văn bản", "🧪 Phòng thí nghiệm văn học", "📚 Giáo án năng lực số"],
+        label_visibility="collapsed"
+    )
+
+# Lưu giữ đối tượng st gốc và tạo wrapper chuyển hướng nội dung vào col_content
+st_orig = st
+class ColStWrapper:
+    def __init__(self, col):
+        self.col = col
+    @property
+    def session_state(self):
+        return st_orig.session_state
+    @property
+    def secrets(self):
+        return st_orig.secrets
+    def __getattr__(self, name):
+        if hasattr(self.col, name):
+            return getattr(self.col, name)
+        return getattr(st_orig, name)
+
+st = ColStWrapper(col_content)
 
 # ------------------------------------------
-# TAB 1: XỬ LÝ VĂN BẢN (Quản lý nội trú trước đây, không dùng sidebar nữa)
+# TAB 1: XỬ LÝ VĂN BẢN
 # ------------------------------------------
-with tab1:
+if active_tab == "📝 Xử lý văn bản":
     col_left, col_right = st.columns([1, 2])
     
     with col_left:
@@ -265,7 +329,7 @@ Trả về kết quả 100% dưới dạng Markdown Table để tôi hiển th�
 # ------------------------------------------
 # TAB 2: PHÒNG THÍ NGHIỆM VĂN HỌC (Trò chơi kéo thả âm thanh tương tác)
 # ------------------------------------------
-with tab2:
+elif active_tab == "🧪 Phòng thí nghiệm văn học":
     st.title("🧪 Phòng Thí Nghiệm Văn Học")
     st.markdown("**Trò chơi học tập: Kéo thả lắp ráp hoàn thiện cấu trúc sơ đồ tư duy Nghị luận xã hội tư tưởng đạo lý.**")
     st.divider()
@@ -1661,6 +1725,146 @@ with tab2:
         """
         
         st.components.v1.html(p5_canvas_html, height=570, scrolling=False)
+
+    elif active_tab == "📚 Giáo án năng lực số":
+        st.title("📚 Soạn Giáo Án Năng Lực Số")
+        st.markdown("**Thiết kế giáo án tích hợp phát triển năng lực số cho học sinh theo định hướng đổi mới giáo dục.**")
+        st.divider()
+        
+        # Khởi tạo session state cho giáo án
+        if "generated_lesson_plan" not in st.session_state:
+            st.session_state.generated_lesson_plan = None
+        if "last_subject" not in st.session_state:
+            st.session_state.last_subject = ""
+        if "last_title" not in st.session_state:
+            st.session_state.last_title = ""
+            
+        with st.form("digital_lesson_plan_form"):
+            col_sub1, col_sub2 = st.columns([1, 1])
+            with col_sub1:
+                subject = st.selectbox(
+                    "Chọn môn học:",
+                    options=[
+                        "Ngữ văn", "Toán", "Lí", "Hóa", "Sinh", 
+                        "Lịch sử", "Địa lí", "Tiếng Anh", "Thể dục", 
+                        "Giáo dục quốc phòng an ninh", "Mĩ thuật", "Âm nhạc", 
+                        "Công nghệ", "Tin học"
+                    ]
+                )
+                grade = st.selectbox(
+                    "Khối lớp:",
+                    options=[f"Lớp {i}" for i in range(1, 13)]
+                )
+            with col_sub2:
+                lesson_title = st.text_input(
+                    "Tên bài học / Chủ đề:", 
+                    placeholder="Ví dụ: Vợ chồng A Phủ, Đạo hàm, Quang hợp..."
+                )
+                duration = st.text_input(
+                    "Thời lượng (tiết):", 
+                    value="2 tiết"
+                )
+                
+            additional_notes = st.text_area(
+                "Yêu cầu bổ sung hoặc trọng tâm bài học (không bắt buộc):",
+                placeholder="Ví dụ: Tập trung phát triển kỹ năng thuyết trình nhóm trên Canva, hướng dẫn tra cứu thông tin trên Wikipedia học thuật..."
+            )
+            
+            submit_btn = st.form_submit_button("🧪 Soạn Giáo Án Năng Lực Số", use_container_width=True)
+            
+        if submit_btn:
+            if not lesson_title.strip():
+                st.warning("⚠️ Vui lòng nhập Tên bài học / Chủ đề để tiếp tục!")
+            elif not configure_genai():
+                st.error("⚠️ LỖI: Chưa cấu hình GOOGLE_API_KEY ở backend. Vui lòng kiểm tra mã nguồn (app.py) hoặc cấu hình Streamlit Secrets.")
+            else:
+                st.info(f"Đang chuẩn bị 'hóa chất' sư phạm và soạn giáo án cho môn **{subject}** - **{lesson_title}**...")
+                
+                # Xây dựng prompt chi tiết phát triển năng lực số
+                notes_prompt = f"\nYêu cầu bổ sung: {additional_notes}" if additional_notes.strip() else ""
+                prompt = f"""Đóng vai là một Chuyên gia Giáo dục cấp cao và Giáo viên cốt cán môn {subject}. Hãy soạn một giáo án phát triển NĂNG LỰC SỐ cho học sinh dựa trên các thông tin sau:
+- Môn học: {subject}
+- Tên bài học/Chủ đề: {lesson_title}
+- Khối lớp: {grade}
+- Thời lượng: {duration}
+{notes_prompt}
+
+Yêu cầu cấu trúc giáo án (Trình bày bằng tiếng Việt, định dạng Markdown rõ ràng, chuyên nghiệp):
+
+# GIÁO ÁN PHÁT TRIỂN NĂNG LỰC SỐ
+## MÔN: {subject.upper()} - {grade.upper()}
+## BÀI HỌC: {lesson_title.upper()}
+**Thời lượng: {duration}**
+
+### I. MỤC TIÊU DẠY HỌC
+1. **Kiến thức cốt lõi**: Nêu các kiến thức cơ bản học sinh cần nắm được sau bài học.
+2. **Năng lực chung**: Năng lực tự chủ và tự học, giao tiếp và hợp tác, giải quyết vấn đề và sáng tạo.
+3. **Năng lực số cần phát triển** (BẮT BUỘC): Xác định rõ học sinh sẽ phát triển khía cạnh nào của năng lực số (ví dụ: Khai thác và xử lý thông tin số; Giao tiếp, hợp tác trên môi trường số; Tạo lập sản phẩm số; An toàn số; Giải quyết vấn đề số). Chỉ rõ công cụ số cụ thể (Canva, Padlet, Google Docs, Geogebra, PhET, Scratch, Kahoot...) học sinh sẽ sử dụng.
+4. **Phẩm chất**: Chăm chỉ, trung thực, trách nhiệm (đặc biệt là trách nhiệm trên không gian mạng).
+
+### II. THIẾT BỊ DẠY HỌC VÀ HỌC LIỆU SỐ
+- Đối với giáo viên: Thiết bị giảng dạy, học liệu số, phần mềm, trang web sử dụng.
+- Đối với học sinh: Thiết bị đầu cuối (nếu có), phần mềm hoặc tài nguyên số cần truy cập.
+
+### III. TIẾN TRÌNH DẠY HỌC (Thiết kế chi tiết 4 hoạt động theo định hướng đổi mới dạy học)
+*Mỗi hoạt động cần ghi rõ: Mục tiêu hoạt động, Nội dung nhiệm vụ, Sản phẩm học tập (khuyến khích sản phẩm số), và Tổ chức thực hiện (các bước chuyển giao, thực hiện, thảo luận, kết luận).*
+1. **Hoạt động 1: Mở đầu/Khởi động** (Ví dụ: Trò chơi Kahoot/Quizizz hoặc xem video trực tuyến để tạo tình huống có vấn đề).
+2. **Hoạt động 2: Hình thành kiến thức mới** (Học sinh khai thác tài liệu số, tra cứu, hoặc làm việc nhóm trên không gian chung như Padlet/Google Slides).
+3. **Hoạt động 3: Luyện tập/Thực hành** (Sử dụng công cụ số để củng cố kiến thức hoặc làm bài tập tương tác).
+4. **Hoạt động 4: Vận dụng/Sáng tạo** (Giao nhiệm vụ thiết kế sản phẩm số, sơ đồ tư duy trên Canva, làm video ngắn giải thích, hoặc lập trình mô phỏng).
+
+### IV. HƯỚNG DẪN ĐÁNH GIÁ NĂNG LỰC SỐ
+- Nêu rõ tiêu chí hoặc công cụ đánh giá năng lực số của học sinh qua các sản phẩm hoặc hoạt động thực hiện trên lớp.
+
+Hãy phản hồi bằng Markdown tiếng Việt cực kỳ chi tiết, chuẩn sư phạm, và trình bày đẹp mắt.
+"""
+                
+                try:
+                    # Lấy danh sách model khả dụng
+                    available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+                    selected_model = available_models[0]
+                    for m_name in available_models:
+                        if "1.5-flash" in m_name or "2.5-flash" in m_name:
+                            selected_model = m_name
+                            break
+                            
+                    model = genai.GenerativeModel(selected_model)
+                    
+                    with st.spinner("AI đang thiết kế giáo án và tích hợp các năng lực số... Vui lòng đợi."):
+                        response = model.generate_content(prompt)
+                        
+                        if response and response.text:
+                            st.success("✅ Đã soạn giáo án thành công!")
+                            st.session_state.generated_lesson_plan = response.text
+                            st.session_state.last_subject = subject
+                            st.session_state.last_title = lesson_title
+                            
+                except Exception as e:
+                    st.error(f"❌ Xảy ra lỗi trong quá trình tạo giáo án: {str(e)}")
+                    
+        if "generated_lesson_plan" in st.session_state and st.session_state.generated_lesson_plan:
+            st.markdown("---")
+            st.subheader("📝 Nội Dung Giáo Án Đã Soạn")
+            st.markdown(st.session_state.generated_lesson_plan)
+            
+            try:
+                docx_bytes = export_lesson_plan_to_docx(st.session_state.generated_lesson_plan)
+                
+                st.markdown("---")
+                col_dl1, col_dl2, col_dl3 = st.columns([1, 2, 1])
+                with col_dl2:
+                    st.download_button(
+                        label="📥 Tải xuống Giáo án (File Word .docx)",
+                        data=docx_bytes,
+                        file_name=f"Giao_an_Nang_luc_so_{st.session_state.last_subject}_{st.session_state.last_title.replace(' ', '_')}.docx",
+                        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                        use_container_width=True
+                    )
+            except Exception as e:
+                st.error(f"Không thể tạo file Word tải xuống: {str(e)}")
+
+# Khôi phục đối tượng st gốc cho phần Footer
+st = st_orig
 
 # ==========================================
 # FOOTER
