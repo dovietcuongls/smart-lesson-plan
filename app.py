@@ -109,6 +109,19 @@ def extract_text_from_docx(file):
     except Exception as e:
         raise Exception(f"Không thể đọc file Word: {e}")
 
+def extract_text_from_pptx(file):
+    from pptx import Presentation
+    text = ""
+    try:
+        prs = Presentation(file)
+        for slide in prs.slides:
+            for shape in slide.shapes:
+                if hasattr(shape, "text") and shape.text:
+                    text += shape.text + "\n"
+    except Exception as e:
+        raise Exception(f"Không thể đọc file PowerPoint: {e}")
+    return text
+
 # Hàm chuyển đổi Markdown Table sang DataFrame của Pandas
 def markdown_table_to_df(markdown_str):
     # Tìm tất cả các dòng chứa ký tự '|' báo hiệu bảng
@@ -143,10 +156,6 @@ def markdown_table_to_df(markdown_str):
     if headers and data:
         return pd.DataFrame(data, columns=headers)
     return None
-
-# Sidebar bảo mật
-gemini_key = st.sidebar.text_input("Nhập Gemini API Key:", type="password", key="gemini_key_ga")
-gmail_app_password = st.sidebar.text_input("Nhập Gmail App Password:", type="password", key="gmail_pass_ga")
 
 # ==========================================
 # GIAO DIỆN CHÍNH
@@ -278,84 +287,127 @@ Trả về kết quả 100% dưới dạng Markdown Table để tôi hiển th�
 # ------------------------------------------
 with tab_giao_an:
     st.header("📝 Soạn Giáo Án Năng Lực Số")
-    email_nhan = st.text_input("Nhập Email giáo viên nhận giáo án:")
-    giao_an_cu = st.text_area("Dán nội dung giáo án Ngữ văn cũ vào đây:", height=300)
+    
+    col_em1, col_em2 = st.columns([1, 1])
+    with col_em1:
+        email_nhan = st.text_input("Nhập Email giáo viên nhận giáo án:", placeholder="username@gmail.com")
+    with col_em2:
+        gmail_app_password = st.text_input("Nhập Gmail App Password của giáo viên:", type="password", placeholder="Mật khẩu ứng dụng 16 ký tự...")
+        
+    st.markdown("---")
+    
+    # Sử dụng Session State để lưu văn bản trích xuất từ file giáo án tải lên
+    if "giao_an_text" not in st.session_state:
+        st.session_state.giao_an_text = ""
+        
+    uploaded_giao_an_file = st.file_uploader(
+        "Tải lên giáo án cũ của bạn (Hỗ trợ PDF, Word .docx, PowerPoint .pptx):",
+        type=["pdf", "docx", "pptx", "doc", "ppt"]
+    )
+    
+    if uploaded_giao_an_file is not None:
+        file_ext = uploaded_giao_an_file.name.split('.')[-1].lower()
+        if file_ext in ["doc", "ppt"]:
+            st.warning("⚠️ Hệ thống hiện hỗ trợ trích xuất văn bản từ định dạng mới (.docx, .pptx). Đối với tệp .doc hoặc .ppt cũ, vui lòng chuyển đổi sang dạng mới bằng cách mở file và chọn 'Save As' dạng .docx hoặc .pptx rồi tải lại lên.")
+        else:
+            try:
+                with st.spinner("Đang trích xuất văn bản từ tệp tin tải lên..."):
+                    if file_ext == "pdf":
+                        extracted_text = extract_text_from_pdf(uploaded_giao_an_file)
+                    elif file_ext == "docx":
+                        extracted_text = extract_text_from_docx(uploaded_giao_an_file)
+                    elif file_ext == "pptx":
+                        extracted_text = extract_text_from_pptx(uploaded_giao_an_file)
+                
+                if extracted_text.strip():
+                    st.session_state.giao_an_text = extracted_text
+                    st.success("✅ Trích xuất văn bản giáo án thành công! Nội dung đã được điền vào ô bên dưới.")
+                else:
+                    st.warning("⚠️ Không tìm thấy hoặc không thể đọc được nội dung văn bản từ tệp tin này.")
+            except Exception as read_err:
+                st.error(f"❌ Lỗi khi đọc file: {str(read_err)}")
+                
+    giao_an_cu = st.text_area(
+        "Nội dung giáo án Ngữ văn cũ:",
+        value=st.session_state.giao_an_text,
+        height=300,
+        placeholder="Dán giáo án cũ tại đây hoặc chọn file tải lên ở trên để hệ thống tự động đọc nội dung..."
+    )
     
     submit_btn = st.button("TÍCH HỢP KHUNG NĂNG LỰC SỐ VÀ CẤP PHÁT GIÁO ÁN", use_container_width=True)
     
     if submit_btn:
         if not email_nhan.strip():
             st.warning("⚠️ Vui lòng nhập Email giáo viên nhận giáo án!")
-        elif not gemini_key.strip():
-            st.warning("⚠️ Vui lòng nhập Gemini API Key ở thanh bên (Sidebar) để tiếp tục!")
         elif not gmail_app_password.strip():
-            st.warning("⚠️ Vui lòng nhập Gmail App Password ở thanh bên (Sidebar) để tiếp tục!")
+            st.warning("⚠️ Vui lòng nhập Gmail App Password của giáo viên!")
         elif not giao_an_cu.strip():
             st.warning("⚠️ Vui lòng nhập hoặc dán nội dung giáo án cũ!")
         else:
             try:
-                # Cấu hình Gemini API Key từ Sidebar
-                genai.configure(api_key=gemini_key)
-                
-                system_instruction = """Bạn là chuyên gia thẩm định và xây dựng chương trình giáo dục phổ thông môn Ngữ văn. Hãy đọc giáo án cũ được cung cấp và tiến hành nâng cấp, tích hợp Khung năng lực số cho người học theo Thông tư số 02/2025/TT-BGDĐT và Khung giáo dục AI theo Quyết định số 3439/QĐ-BGDĐT của Bộ Giáo dục và Đào tạo Việt Nam.
+                # Cấu hình Gemini bằng API Key hệ thống mặc định
+                if not configure_genai():
+                    st.error("⚠️ LỖI: Chưa cấu hình GOOGLE_API_KEY ở backend. Vui lòng kiểm tra mã nguồn (app.py) hoặc cấu hình Streamlit Secrets.")
+                else:
+                    system_instruction = """Bạn là chuyên gia thẩm định và xây dựng chương trình giáo dục phổ thông môn Ngữ văn. Hãy đọc giáo án cũ được cung cấp và tiến hành nâng cấp, tích hợp Khung năng lực số cho người học theo Thông tư số 02/2025/TT-BGDĐT và Khung giáo dục AI theo Quyết định số 3439/QĐ-BGDĐT của Bộ Giáo dục và Đào tạo Việt Nam.
 Yêu cầu tích hợp:
 + Giữ vững cấu trúc kiến thức đặc trưng của thể loại văn học (Sử thi, Thần thoại, Thơ trữ tình, Bi kịch, Tiểu thuyết...) theo đúng phân phối chương trình Sách giáo khoa Kết nối tri thức.
 + Đối với cấp THPT, thiết kế các hoạt động học tập tương tác số đạt Mức độ thành thạo Bậc 5 (Nâng cao 1). Học sinh phải đóng vai trò tự chủ: tự khai thác dữ liệu, sử dụng AI tạo sinh có trách nhiệm để kiểm chứng thông tin, tự tạo lập nội dung số đa phương thức hoặc thực hiện trách nhiệm công dân trong môi trường số.
 + Lồng ghép các mục tiêu số này vào mục 'Mục tiêu bài học (Về năng lực số)' và triển khai các hoạt động cụ thể của học sinh trong mục 'Tiến trình dạy học'.
 + Bắt buộc đánh dấu bắt đầu và kết thúc của mỗi đoạn văn bản được tích hợp mới bằng cụm từ chính xác: [DIGITAL_START] và [DIGITAL_END] để hệ thống xử lý hậu kỳ bôi vàng."""
-                
-                with st.spinner("AI đang phân tích và tích hợp Khung năng lực số vào giáo án..."):
-                    model = genai.GenerativeModel("gemini-1.5-flash", system_instruction=system_instruction)
-                    response = model.generate_content(f"Nội dung giáo án cũ:\n\n{giao_an_cu}")
-                
-                if response and response.text:
-                    st.success("✅ Đã tích hợp Khung năng lực số thành công!")
                     
-                    # Hiển thị kết quả lên màn hình
-                    st.subheader("📊 Giáo án đã được nâng cấp tích hợp")
-                    st.markdown(response.text)
+                    with st.spinner("AI đang phân tích và tích hợp Khung năng lực số vào giáo án..."):
+                        model = genai.GenerativeModel("gemini-1.5-flash", system_instruction=system_instruction)
+                        response = model.generate_content(f"Nội dung giáo án cũ:\n\n{giao_an_cu}")
                     
-                    # Logic đóng gói file Word
-                    with st.spinner("Đang đóng gói giáo án vào file Word..."):
-                        doc = docx.Document()
-                        paragraphs = response.text.split('\n')
-                        for p_text in paragraphs:
-                            is_highlighted = "[DIGITAL_START]" in p_text and "[DIGITAL_END]" in p_text
-                            clean_text = p_text.replace("[DIGITAL_START]", "").replace("[DIGITAL_END]", "")
-                            
-                            p = doc.add_paragraph()
-                            run = p.add_run(clean_text)
-                            if is_highlighted:
-                                run.font.highlight_color = WD_COLOR_INDEX.YELLOW
+                    if response and response.text:
+                        st.success("✅ Đã tích hợp Khung năng lực số thành công!")
                         
-                        doc.save("Giao_An_Nang_Luc_So.docx")
-                    
-                    # Logic gửi Email SMTP Gmail
-                    msg = MIMEMultipart()
-                    msg["From"] = email_nhan
-                    msg["To"] = email_nhan
-                    msg["Subject"] = "[Smart App] Giáo Án Ngữ Văn Tích Hợp Khung Năng Lực Số Hoàn Thiện"
-                    
-                    body = "Kính gửi Thầy/Cô,\n\nĐây là Giáo án Ngữ văn tích hợp Khung năng lực số đã được tự động thẩm định và nâng cấp hoàn thiện bởi AI.\n\nCác phần tích hợp mới đã được bôi vàng trong tài liệu đính kèm.\n\nTrân trọng,\nSmart App"
-                    msg.attach(MIMEText(body, "plain", "utf-8"))
-                    
-                    filename = "Giao_An_Nang_Luc_So.docx"
-                    with open(filename, "rb") as attachment:
-                        part = MIMEBase("application", "octet-stream")
-                        part.set_payload(attachment.read())
-                        encoders.encode_base64(part)
-                        part.add_header(
-                            "Content-Disposition",
-                            f"attachment; filename={filename}",
-                        )
-                        msg.attach(part)
-                    
-                    with st.spinner("Đang gửi email đính kèm giáo án qua máy chủ SMTP Gmail..."):
-                        context = ssl.create_default_context()
-                        with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as server:
-                            server.login(email_nhan, gmail_app_password)
-                            server.sendmail(email_nhan, email_nhan, msg.as_string())
-                        st.success(f"🚀 Đã gửi email đính kèm giáo án đến hộp thư **{email_nhan}** thành công!")
+                        # Hiển thị kết quả lên màn hình
+                        st.subheader("📊 Giáo án đã được nâng cấp tích hợp")
+                        st.markdown(response.text)
+                        
+                        # Logic đóng gói file Word
+                        with st.spinner("Đang đóng gói giáo án vào file Word..."):
+                            doc = docx.Document()
+                            paragraphs = response.text.split('\n')
+                            for p_text in paragraphs:
+                                is_highlighted = "[DIGITAL_START]" in p_text and "[DIGITAL_END]" in p_text
+                                clean_text = p_text.replace("[DIGITAL_START]", "").replace("[DIGITAL_END]", "")
+                                
+                                p = doc.add_paragraph()
+                                run = p.add_run(clean_text)
+                                if is_highlighted:
+                                    run.font.highlight_color = WD_COLOR_INDEX.YELLOW
+                            
+                            doc.save("Giao_An_Nang_Luc_So.docx")
+                        
+                        # Logic gửi Email SMTP Gmail
+                        msg = MIMEMultipart()
+                        msg["From"] = email_nhan
+                        msg["To"] = email_nhan
+                        msg["Subject"] = "[Smart App] Giáo Án Ngữ Văn Tích Hợp Khung Năng Lực Số Hoàn Thiện"
+                        
+                        body = "Kính gửi Thầy/Cô,\n\nĐây là Giáo án Ngữ văn tích hợp Khung năng lực số đã được tự động thẩm định và nâng cấp hoàn thiện bởi AI.\n\nCác phần tích hợp mới đã được bôi vàng trong tài liệu đính kèm.\n\nTrân trọng,\nSmart App"
+                        msg.attach(MIMEText(body, "plain", "utf-8"))
+                        
+                        filename = "Giao_An_Nang_Luc_So.docx"
+                        with open(filename, "rb") as attachment:
+                            part = MIMEBase("application", "octet-stream")
+                            part.set_payload(attachment.read())
+                            encoders.encode_base64(part)
+                            part.add_header(
+                                "Content-Disposition",
+                                f"attachment; filename={filename}",
+                            )
+                            msg.attach(part)
+                        
+                        with st.spinner("Đang gửi email đính kèm giáo án qua máy chủ SMTP Gmail..."):
+                            context = ssl.create_default_context()
+                            with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as server:
+                                server.login(email_nhan, gmail_app_password)
+                                server.sendmail(email_nhan, email_nhan, msg.as_string())
+                            st.success(f"🚀 Đã gửi email đính kèm giáo án đến hộp thư **{email_nhan}** thành công!")
             except Exception as e:
                 st.error(f"❌ Xảy ra lỗi trong quá trình xử lý hoặc gửi email: {str(e)}")
 

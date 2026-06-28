@@ -6,3 +6,4 @@ python-docx
 pillow
 pandas
 openpyxl
+python-pptx
