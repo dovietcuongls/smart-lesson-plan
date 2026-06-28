@@ -122,6 +122,96 @@ def extract_text_from_pptx(file):
         raise Exception(f"Không thể đọc file PowerPoint: {e}")
     return text
 
+def convert_doc_to_docx_win32(uploaded_file):
+    import tempfile
+    import os
+    import win32com.client as win32
+    import pythoncom
+    
+    # Save uploaded file bytes to a temporary .doc file
+    temp_dir = tempfile.gettempdir()
+    input_path = os.path.join(temp_dir, "temp_uploaded_giaoan.doc")
+    output_path = os.path.splitext(input_path)[0] + ".docx"
+    
+    # Remove existing files if any
+    if os.path.exists(input_path):
+        try: os.remove(input_path)
+        except: pass
+    if os.path.exists(output_path):
+        try: os.remove(output_path)
+        except: pass
+        
+    uploaded_file.seek(0)
+    with open(input_path, "wb") as f:
+        f.write(uploaded_file.read())
+        
+    try:
+        pythoncom.CoInitialize()
+        word = win32.gencache.EnsureDispatch('Word.Application')
+        word.Visible = False
+        doc = word.Documents.Open(input_path)
+        doc.SaveAs(output_path, FileFormat=12) # 12 = wdFormatXMLDocument
+        doc.Close()
+        word.Quit()
+        
+        # Read the newly created docx file
+        with open(output_path, "rb") as docx_file:
+            text = extract_text_from_docx(docx_file)
+            
+        return text
+    except Exception as e:
+        raise Exception(f"Lỗi khi chuyển đổi và đọc file .doc: {e}. Đảm bảo máy tính chạy ứng dụng đã cài đặt MS Word.")
+    finally:
+        if os.path.exists(input_path):
+            try: os.remove(input_path)
+            except: pass
+        if os.path.exists(output_path):
+            try: os.remove(output_path)
+            except: pass
+
+def convert_ppt_to_pptx_win32(uploaded_file):
+    import tempfile
+    import os
+    import win32com.client as win32
+    import pythoncom
+    
+    temp_dir = tempfile.gettempdir()
+    input_path = os.path.join(temp_dir, "temp_uploaded_giaoan.ppt")
+    output_path = os.path.splitext(input_path)[0] + ".pptx"
+    
+    if os.path.exists(input_path):
+        try: os.remove(input_path)
+        except: pass
+    if os.path.exists(output_path):
+        try: os.remove(output_path)
+        except: pass
+        
+    uploaded_file.seek(0)
+    with open(input_path, "wb") as f:
+        f.write(uploaded_file.read())
+        
+    try:
+        pythoncom.CoInitialize()
+        powerpoint = win32.Dispatch("Powerpoint.Application")
+        presentation = powerpoint.Presentations.Open(input_path, WithWindow=False)
+        presentation.SaveAs(output_path, 24) # 24 = PpSaveAsFileType.ppSaveAsOpenXMLPresentation
+        presentation.Close()
+        powerpoint.Quit()
+        
+        with open(output_path, "rb") as pptx_file:
+            text = extract_text_from_pptx(pptx_file)
+            
+        return text
+    except Exception as e:
+        raise Exception(f"Lỗi khi chuyển đổi và đọc file .ppt: {e}. Đảm bảo máy tính chạy ứng dụng đã cài đặt MS PowerPoint.")
+    finally:
+        if os.path.exists(input_path):
+            try: os.remove(input_path)
+            except: pass
+        if os.path.exists(output_path):
+            try: os.remove(output_path)
+            except: pass
+
 # Hàm chuyển đổi Markdown Table sang DataFrame của Pandas
 def markdown_table_to_df(markdown_str):
     # Tìm tất cả các dòng chứa ký tự '|' báo hiệu bảng
@@ -301,31 +391,34 @@ with tab_giao_an:
         st.session_state.giao_an_text = ""
         
     uploaded_giao_an_file = st.file_uploader(
-        "Tải lên giáo án cũ của bạn (Hỗ trợ PDF, Word .docx, PowerPoint .pptx):",
+        "Tải lên giáo án cũ của bạn (Hỗ trợ PDF, Word .doc/.docx, PowerPoint .ppt/.pptx):",
         type=["pdf", "docx", "pptx", "doc", "ppt"]
     )
     
     if uploaded_giao_an_file is not None:
         file_ext = uploaded_giao_an_file.name.split('.')[-1].lower()
-        if file_ext in ["doc", "ppt"]:
-            st.warning("⚠️ Hệ thống hiện hỗ trợ trích xuất văn bản từ định dạng mới (.docx, .pptx). Đối với tệp .doc hoặc .ppt cũ, vui lòng chuyển đổi sang dạng mới bằng cách mở file và chọn 'Save As' dạng .docx hoặc .pptx rồi tải lại lên.")
-        else:
-            try:
-                with st.spinner("Đang trích xuất văn bản từ tệp tin tải lên..."):
-                    if file_ext == "pdf":
-                        extracted_text = extract_text_from_pdf(uploaded_giao_an_file)
-                    elif file_ext == "docx":
-                        extracted_text = extract_text_from_docx(uploaded_giao_an_file)
-                    elif file_ext == "pptx":
-                        extracted_text = extract_text_from_pptx(uploaded_giao_an_file)
-                
-                if extracted_text.strip():
-                    st.session_state.giao_an_text = extracted_text
-                    st.success("✅ Trích xuất văn bản giáo án thành công! Nội dung đã được điền vào ô bên dưới.")
+        try:
+            with st.spinner("Đang trích xuất văn bản từ tệp tin tải lên..."):
+                if file_ext == "pdf":
+                    extracted_text = extract_text_from_pdf(uploaded_giao_an_file)
+                elif file_ext == "docx":
+                    extracted_text = extract_text_from_docx(uploaded_giao_an_file)
+                elif file_ext == "pptx":
+                    extracted_text = extract_text_from_pptx(uploaded_giao_an_file)
+                elif file_ext == "doc":
+                    extracted_text = convert_doc_to_docx_win32(uploaded_giao_an_file)
+                elif file_ext == "ppt":
+                    extracted_text = convert_ppt_to_pptx_win32(uploaded_giao_an_file)
                 else:
-                    st.warning("⚠️ Không tìm thấy hoặc không thể đọc được nội dung văn bản từ tệp tin này.")
-            except Exception as read_err:
-                st.error(f"❌ Lỗi khi đọc file: {str(read_err)}")
+                    extracted_text = ""
+            
+            if extracted_text.strip():
+                st.session_state.giao_an_text = extracted_text
+                st.success("✅ Trích xuất văn bản giáo án thành công! Nội dung đã được điền vào ô bên dưới.")
+            else:
+                st.warning("⚠️ Không tìm thấy hoặc không thể đọc được nội dung văn bản từ tệp tin này.")
+        except Exception as read_err:
+            st.error(f"❌ Lỗi khi đọc file: {str(read_err)}")
                 
     giao_an_cu = st.text_area(
         "Nội dung giáo án Ngữ văn cũ:",
