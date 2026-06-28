@@ -378,11 +378,7 @@ Trả về kết quả 100% dưới dạng Markdown Table để tôi hiển th�
 with tab_giao_an:
     st.header("📝 Soạn Giáo Án Năng Lực Số")
     
-    col_em1, col_em2 = st.columns([1, 1])
-    with col_em1:
-        email_nhan = st.text_input("Nhập Email giáo viên nhận giáo án:", placeholder="username@gmail.com")
-    with col_em2:
-        gmail_app_password = st.text_input("Nhập Gmail App Password của giáo viên:", type="password", placeholder="Mật khẩu ứng dụng 16 ký tự...")
+    email_nhan = st.text_input("Nhập Email giáo viên nhận giáo án:", placeholder="username@gmail.com")
         
     st.markdown("---")
     
@@ -432,8 +428,6 @@ with tab_giao_an:
     if submit_btn:
         if not email_nhan.strip():
             st.warning("⚠️ Vui lòng nhập Email giáo viên nhận giáo án!")
-        elif not gmail_app_password.strip():
-            st.warning("⚠️ Vui lòng nhập Gmail App Password của giáo viên!")
         elif not giao_an_cu.strip():
             st.warning("⚠️ Vui lòng nhập hoặc dán nội dung giáo án cũ!")
         else:
@@ -475,34 +469,54 @@ Yêu cầu tích hợp:
                             
                             doc.save("Giao_An_Nang_Luc_So.docx")
                         
-                        # Logic gửi Email SMTP Gmail
-                        msg = MIMEMultipart()
-                        msg["From"] = email_nhan
-                        msg["To"] = email_nhan
-                        msg["Subject"] = "[Smart App] Giáo Án Ngữ Văn Tích Hợp Khung Năng Lực Số Hoàn Thiện"
-                        
-                        body = "Kính gửi Thầy/Cô,\n\nĐây là Giáo án Ngữ văn tích hợp Khung năng lực số đã được tự động thẩm định và nâng cấp hoàn thiện bởi AI.\n\nCác phần tích hợp mới đã được bôi vàng trong tài liệu đính kèm.\n\nTrân trọng,\nSmart App"
-                        msg.attach(MIMEText(body, "plain", "utf-8"))
-                        
-                        filename = "Giao_An_Nang_Luc_So.docx"
-                        with open(filename, "rb") as attachment:
-                            part = MIMEBase("application", "octet-stream")
-                            part.set_payload(attachment.read())
-                            encoders.encode_base64(part)
-                            part.add_header(
-                                "Content-Disposition",
-                                f"attachment; filename={filename}",
+                        # Hiển thị nút tải file Word trực tiếp trên giao diện
+                        st.markdown("---")
+                        with open("Giao_An_Nang_Luc_So.docx", "rb") as file:
+                            st.download_button(
+                                label="📥 Tải xuống Giáo án Word (.docx) đã tích hợp",
+                                data=file,
+                                file_name=f"Giao_An_Nang_Luc_So_{email_nhan.split('@')[0]}.docx",
+                                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                                use_container_width=True
                             )
-                            msg.attach(part)
                         
-                        with st.spinner("Đang gửi email đính kèm giáo án qua máy chủ SMTP Gmail..."):
-                            context = ssl.create_default_context()
-                            with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as server:
-                                server.login(email_nhan, gmail_app_password)
-                                server.sendmail(email_nhan, email_nhan, msg.as_string())
-                            st.success(f"🚀 Đã gửi email đính kèm giáo án đến hộp thư **{email_nhan}** thành công!")
+                        # Logic gửi Email SMTP bằng tài khoản hệ thống từ backend
+                        sender_email = st.secrets.get("SENDER_EMAIL", "dovietcuongls@gmail.com")
+                        sender_password = st.secrets.get("SENDER_PASSWORD", "")
+                        
+                        if sender_password:
+                            try:
+                                msg = MIMEMultipart()
+                                msg["From"] = sender_email
+                                msg["To"] = email_nhan
+                                msg["Subject"] = "[Smart App] Giáo Án Ngữ Văn Tích Hợp Khung Năng Lực Số Hoàn Thiện"
+                                
+                                body = "Kính gửi Thầy/Cô,\n\nĐây là Giáo án Ngữ văn tích hợp Khung năng lực số đã được tự động thẩm định và nâng cấp hoàn thiện bởi AI.\n\nCác phần tích hợp mới đã được bôi vàng trong tài liệu đính kèm.\n\nTrân trọng,\nSmart App"
+                                msg.attach(MIMEText(body, "plain", "utf-8"))
+                                
+                                filename = "Giao_An_Nang_Luc_So.docx"
+                                with open(filename, "rb") as attachment:
+                                    part = MIMEBase("application", "octet-stream")
+                                    part.set_payload(attachment.read())
+                                    encoders.encode_base64(part)
+                                    part.add_header(
+                                        "Content-Disposition",
+                                        f"attachment; filename={filename}",
+                                    )
+                                    msg.attach(part)
+                                
+                                with st.spinner("Đang gửi email đính kèm giáo án qua máy chủ SMTP hệ thống..."):
+                                    context = ssl.create_default_context()
+                                    with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as server:
+                                        server.login(sender_email, sender_password)
+                                        server.sendmail(sender_email, email_nhan, msg.as_string())
+                                    st.success(f"🚀 Đã tự động gửi email bản sao giáo án đến hộp thư **{email_nhan}** thành công!")
+                            except Exception as mail_err:
+                                st.warning(f"📧 Lưu ý: Không thể gửi mail tự động ({str(mail_err)}). Thầy cô vui lòng nhấn nút Tải xuống ở trên để nhận file trực tiếp.")
+                        else:
+                            st.info("ℹ️ Chế độ gửi mail tự động chưa cấu hình ở backend. Thầy cô vui lòng nhấn nút Tải xuống ở trên để nhận trực tiếp file Word giáo án.")
             except Exception as e:
-                st.error(f"❌ Xảy ra lỗi trong quá trình xử lý hoặc gửi email: {str(e)}")
+                st.error(f"❌ Xảy ra lỗi trong quá trình xử lý: {str(e)}")
 
 # ==========================================
 # FOOTER
