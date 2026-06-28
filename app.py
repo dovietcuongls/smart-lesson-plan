@@ -122,11 +122,52 @@ def extract_text_from_pptx(file):
         raise Exception(f"Không thể đọc file PowerPoint: {e}")
     return text
 
+def extract_text_from_binary_office_file(file_bytes):
+    import re
+    # Try decoding UTF-16LE first
+    try:
+        decoded_utf16 = file_bytes.decode('utf-16-le', errors='ignore')
+        pattern = re.compile(r'[a-zA-Z0-9\s.,;:!?()\'"\-\+đĐâăêôơưáàảãạấầẩẫậắằẳẵặếềểễệíìỉĩịóòỏõọốồổỗộớờởỡợúùủũụứừửữựýỳỷỹỵ]{6,}')
+        runs = pattern.findall(decoded_utf16)
+        valid_runs = []
+        for run in runs:
+            clean_run = run.strip()
+            if len(clean_run) > 10 and not any(x in clean_run for x in ['Microsoft', 'Document', 'Template', 'Title', 'Author', 'Created']):
+                clean_run = re.sub(r'\s+', ' ', clean_run)
+                valid_runs.append(clean_run)
+        if len(valid_runs) > 3:
+            return "\n\n".join(valid_runs)
+    except:
+        pass
+
+    # Try decoding latin1 (1-byte characters) as fallback
+    try:
+        decoded_latin1 = file_bytes.decode('latin-1', errors='ignore')
+        pattern = re.compile(r'[a-zA-Z0-9\s.,;:!?()\'"\-\+đĐâăêôơưáàảãạấầẩẫậắằẳẵặếềểễệíìỉĩịóòỏõọốồổỗộớờởỡợúùủũụứừửữựýỳỷỹỵ]{6,}')
+        runs = pattern.findall(decoded_latin1)
+        valid_runs = []
+        for run in runs:
+            clean_run = run.strip()
+            if len(clean_run) > 10 and not any(x in clean_run for x in ['Microsoft', 'Document', 'Template', 'Title', 'Author', 'Created']):
+                clean_run = re.sub(r'\s+', ' ', clean_run)
+                valid_runs.append(clean_run)
+        if len(valid_runs) > 3:
+            return "\n\n".join(valid_runs)
+    except:
+        pass
+        
+    return ""
+
 def convert_doc_to_docx_win32(uploaded_file):
     try:
         import win32com.client as win32
         import pythoncom
     except ImportError:
+        # Fallback to pure python binary extractor
+        uploaded_file.seek(0)
+        pure_text = extract_text_from_binary_office_file(uploaded_file.read())
+        if pure_text.strip():
+            return pure_text
         raise Exception("Không hỗ trợ đọc file .doc trên máy chủ Linux/Cloud. Thầy cô vui lòng lưu file giáo án cũ dưới dạng đuôi mới .docx rồi tải lại lên.")
 
     import tempfile
@@ -178,6 +219,11 @@ def convert_ppt_to_pptx_win32(uploaded_file):
         import win32com.client as win32
         import pythoncom
     except ImportError:
+        # Fallback to pure python binary extractor
+        uploaded_file.seek(0)
+        pure_text = extract_text_from_binary_office_file(uploaded_file.read())
+        if pure_text.strip():
+            return pure_text
         raise Exception("Không hỗ trợ đọc file .ppt trên máy chủ Linux/Cloud. Thầy cô vui lòng lưu file giáo án cũ dưới dạng đuôi mới .pptx rồi tải lại lên.")
 
     import tempfile
@@ -452,7 +498,18 @@ Yêu cầu tích hợp:
 + Bắt buộc đánh dấu bắt đầu và kết thúc của mỗi đoạn văn bản được tích hợp mới bằng cụm từ chính xác: [DIGITAL_START] và [DIGITAL_END] để hệ thống xử lý hậu kỳ bôi vàng."""
                     
                     with st.spinner("AI đang phân tích và tích hợp Khung năng lực số vào giáo án..."):
-                        model = genai.GenerativeModel("gemini-1.5-flash", system_instruction=system_instruction)
+                        # Lấy danh sách model khả dụng
+                        available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+                        if not available_models:
+                            raise Exception("API Key của bạn không có quyền truy cập vào bất kỳ mô hình Gemini nào hỗ trợ tạo nội dung.")
+                        
+                        selected_model = available_models[0]
+                        for m_name in available_models:
+                            if "1.5-flash" in m_name or "2.5-flash" in m_name:
+                                selected_model = m_name
+                                break
+                                
+                        model = genai.GenerativeModel(selected_model, system_instruction=system_instruction)
                         response = model.generate_content(f"Nội dung giáo án cũ:\n\n{giao_an_cu}")
                     
                     if response and response.text:
